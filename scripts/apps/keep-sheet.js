@@ -16,8 +16,10 @@ const { ActorSheetV2 } = foundry.applications.sheets;
 export class KeepSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /** @override */
   static DEFAULT_OPTIONS = {
-    classes: ["automate-fvtt", "keep-sheet"],
-    position: { width: 460, height: "auto" },
+    // NB: deliberately NOT using a bare "automate-fvtt" class — an old scaffold
+    // rule (.automate-fvtt { display: contents }) would dissolve the window box.
+    classes: ["keep-sheet"],
+    position: { width: 520, height: "auto" },
     window: { resizable: true, icon: "fa-solid fa-chess-rook" },
     form: { submitOnChange: true, closeOnSubmit: false },
     actions: {

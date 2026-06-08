@@ -1,50 +1,57 @@
 {{!-- Keep sheet body (Phase 1). Rendered inside the ApplicationV2 <form>. --}}
-<div class="automate-fvtt keep-sheet__content">
+<div class="keep-sheet__layout">
 
-  <div class="keep-sheet__field">
-    <label for="keep-name">{{localize "AUTOMATE_FVTT.Keep.Name"}}</label>
-    <input id="keep-name" type="text" name="name" value="{{keep.name}}" {{#unless editable}}disabled{{/unless}} />
+  <aside class="keep-sheet__aside">
+    <img class="keep-sheet__portrait" src="{{keep.img}}" alt="{{keep.name}}" data-edit="img" />
+  </aside>
+
+  <div class="keep-sheet__main">
+
+    <div class="keep-sheet__field">
+      <label for="keep-name">{{localize "AUTOMATE_FVTT.Keep.Name"}}</label>
+      <input id="keep-name" type="text" name="name" value="{{keep.name}}" {{#unless editable}}disabled{{/unless}} />
+    </div>
+
+    <fieldset class="keep-sheet__counts">
+      <legend>{{localize "AUTOMATE_FVTT.Keep.Counts"}}</legend>
+      <div class="keep-sheet__field">
+        <label for="keep-henchmen">{{localize "AUTOMATE_FVTT.Keep.Henchmen"}}</label>
+        <input id="keep-henchmen" type="number" min="0" step="1" name="system.counts.henchmen"
+               value="{{counts.henchmen}}" {{#unless editable}}disabled{{/unless}} />
+      </div>
+      <div class="keep-sheet__field">
+        <label for="keep-garden">{{localize "AUTOMATE_FVTT.Keep.Garden"}}</label>
+        <input id="keep-garden" type="number" min="0" step="1" name="system.counts.garden"
+               value="{{counts.garden}}" {{#unless editable}}disabled{{/unless}} />
+      </div>
+    </fieldset>
+
+    <fieldset class="keep-sheet__stockpile">
+      <legend>{{localize "AUTOMATE_FVTT.Keep.Stockpile"}}</legend>
+      {{#if resources.length}}
+        {{#each resources as |r|}}
+          <div class="keep-sheet__resource" data-resource="{{r.key}}">
+            <span class="keep-sheet__resource-name">{{r.key}}</span>
+            <input type="number" min="0" name="system.stockpile.{{r.key}}" value="{{r.qty}}"
+                   {{#unless ../editable}}disabled{{/unless}} />
+            {{#if ../editable}}
+              <button type="button" class="keep-sheet__remove" data-action="removeResource"
+                      data-resource="{{r.key}}" data-tooltip="{{localize "AUTOMATE_FVTT.Keep.Remove"}}">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            {{/if}}
+          </div>
+        {{/each}}
+      {{else}}
+        <p class="keep-sheet__empty">{{localize "AUTOMATE_FVTT.Keep.NoResources"}}</p>
+      {{/if}}
+
+      {{#if editable}}
+        <button type="button" class="keep-sheet__add" data-action="addResource">
+          <i class="fa-solid fa-plus"></i> {{localize "AUTOMATE_FVTT.Keep.AddResource"}}
+        </button>
+      {{/if}}
+    </fieldset>
+
   </div>
-
-  <fieldset class="keep-sheet__counts">
-    <legend>{{localize "AUTOMATE_FVTT.Keep.Counts"}}</legend>
-    <div class="keep-sheet__field">
-      <label for="keep-henchmen">{{localize "AUTOMATE_FVTT.Keep.Henchmen"}}</label>
-      <input id="keep-henchmen" type="number" min="0" step="1" name="system.counts.henchmen"
-             value="{{counts.henchmen}}" {{#unless editable}}disabled{{/unless}} />
-    </div>
-    <div class="keep-sheet__field">
-      <label for="keep-garden">{{localize "AUTOMATE_FVTT.Keep.Garden"}}</label>
-      <input id="keep-garden" type="number" min="0" step="1" name="system.counts.garden"
-             value="{{counts.garden}}" {{#unless editable}}disabled{{/unless}} />
-    </div>
-  </fieldset>
-
-  <fieldset class="keep-sheet__stockpile">
-    <legend>{{localize "AUTOMATE_FVTT.Keep.Stockpile"}}</legend>
-    {{#if resources.length}}
-      {{#each resources as |r|}}
-        <div class="keep-sheet__resource" data-resource="{{r.key}}">
-          <span class="keep-sheet__resource-name">{{r.key}}</span>
-          <input type="number" min="0" name="system.stockpile.{{r.key}}" value="{{r.qty}}"
-                 {{#unless ../editable}}disabled{{/unless}} />
-          {{#if ../editable}}
-            <button type="button" class="keep-sheet__remove" data-action="removeResource"
-                    data-resource="{{r.key}}" data-tooltip="{{localize "AUTOMATE_FVTT.Keep.Remove"}}">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          {{/if}}
-        </div>
-      {{/each}}
-    {{else}}
-      <p class="keep-sheet__empty">{{localize "AUTOMATE_FVTT.Keep.NoResources"}}</p>
-    {{/if}}
-
-    {{#if editable}}
-      <button type="button" class="keep-sheet__add" data-action="addResource">
-        <i class="fa-solid fa-plus"></i> {{localize "AUTOMATE_FVTT.Keep.AddResource"}}
-      </button>
-    {{/if}}
-  </fieldset>
-
 </div>

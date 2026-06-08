@@ -9,7 +9,7 @@
  * @module keep-api
  */
 
-import { KEEP_TYPE, HOOKS } from "./constants.js";
+import { KEEP_TYPE, KEEP_ICON, HOOKS } from "./constants.js";
 import { log } from "./logger.js";
 
 /** @returns {Actor[]} all Keep actors in the world. */
@@ -43,10 +43,11 @@ export function getSceneKeep(sceneId) {
  * @param {object} [data.counts]     { henchmen, garden }
  * @returns {Promise<Actor>}
  */
-export async function createKeep({ name = "New Keep", sceneId = null, stockpile = {}, counts = {} } = {}) {
+export async function createKeep({ name = "New Keep", sceneId = null, stockpile = {}, counts = {}, img = KEEP_ICON } = {}) {
   const actor = await Actor.create({
     name,
     type: KEEP_TYPE,
+    img,
     system: { sceneId, stockpile, counts },
   });
   log.debug(`Created Keep "${name}" (${actor?.id}).`);

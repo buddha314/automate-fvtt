@@ -21,6 +21,9 @@ export const SETTINGS = Object.freeze({
  */
 export const KEEP_TYPE = `${MODULE_ID}.keep`;
 
+/** Default Keep portrait — temporary placeholder art for testing. */
+export const KEEP_ICON = `modules/${MODULE_ID}/assets/icons/nuclear-plant.svg`;
+
 /** Hooks this module emits, for other code (and later phases) to listen on. */
 export const HOOKS = Object.freeze({
   /** Fired once after the Fabricate handshake resolves, with the FabricateAdapter. */
