@@ -10,6 +10,13 @@ This repository now contains the basic Foundry VTT module scaffold:
 - `lang/en.json` English localization file
 
 ## Local development setup
-1. Symlink this repository into your Foundry data modules folder:
-   - Linux/macOS: `~/FoundryVTT/Data/modules/automate-fvtt`
+1. Create a link from this repository to your Foundry data modules folder:
+   - Linux/macOS:
+     ```bash
+     ln -s /path/to/automate-fvtt ~/FoundryVTT/Data/modules/automate-fvtt
+     ```
+   - Windows (PowerShell as Administrator):
+     ```powershell
+     New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\AppData\Local\FoundryVTT\Data\modules\automate-fvtt" -Target "C:\path\to\automate-fvtt"
+     ```
 2. Restart Foundry VTT and enable **Automate FVTT** in your world.
