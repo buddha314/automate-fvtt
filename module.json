@@ -9,8 +9,32 @@
     }
   ],
   "compatibility": {
-    "minimum": "12.0",
-    "verified": "12.0"
+    "minimum": "13",
+    "verified": "13"
+  },
+  "relationships": {
+    "requires": [
+      {
+        "id": "fabricate",
+        "type": "module",
+        "manifest": "https://github.com/mistersilver-uk/fabricate/releases/latest/download/module.json",
+        "reason": "Provides the system-agnostic crafting + gathering data model (recipes, resource nodes, world-time-driven regen/respawn) this module builds its Keep economy on top of."
+      }
+    ],
+    "recommends": [
+      {
+        "id": "seasons-and-stars",
+        "type": "module",
+        "manifest": "https://github.com/rayners/fvtt-seasons-and-stars/releases/latest/download/module.json",
+        "reason": "Modern Foundry v13 calendar UI and real-time clock; enables real-to-game time mapping (e.g. 1 real day = 1 game month) for scheduled production."
+      },
+      {
+        "id": "about-time-next",
+        "type": "module",
+        "manifest": "https://github.com/paulcheeba/about-time-next/releases/latest/download/module.json",
+        "reason": "Game-time event scheduling API (doEvery/doAt) for one-off and recurring time-based automation."
+      }
+    ]
   },
   "esmodules": [
     "scripts/module.js"
