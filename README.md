@@ -19,4 +19,5 @@ This repository now contains the basic Foundry VTT module scaffold:
      ```powershell
      New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\AppData\Local\FoundryVTT\Data\modules\automate-fvtt" -Target "C:\absolute\path\to\automate-fvtt"
      ```
+   - Replace the Windows target path with your repository path (or use `(Get-Location).Path` from the repo directory).
 2. Restart Foundry VTT and enable **Automate FVTT** in your world.
