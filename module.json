@@ -9,8 +9,8 @@
     }
   ],
   "compatibility": {
-    "minimum": "12",
-    "verified": "12"
+    "minimum": "12.0",
+    "verified": "12.0"
   },
   "esmodules": [
     "scripts/module.js"
