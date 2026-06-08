@@ -11,6 +11,10 @@ This repository contains the Foundry VTT module scaffold and the Phase 0 foundat
 - `scripts/settings.js` settings registration
 - `scripts/fabricate-adapter.js` **the single seam over Fabricate** — detect, acquire, version-check
 - `scripts/types.js` shared JSDoc typedefs (Keep, Stockpile, Rule, Asset, Port, AdjacencyEdge)
+- `scripts/data/keep-model.js` Keep actor sub-type data model (stockpile + counts)
+- `scripts/apps/keep-sheet.js` minimal Keep sheet (ApplicationV2)
+- `scripts/keep-api.js` Keep CRUD API, published at `game.modules.get("automate-fvtt").api.keeps`
+- `templates/keep-sheet.hbs` Keep sheet template
 - `styles/module.css` base stylesheet
 - `lang/en.json` English localization file
 
@@ -20,6 +24,18 @@ interaction with Fabricate goes through `FabricateAdapter` so that Fabricate's p
 isolated to one file. The handshake runs at `ready` (Fabricate publishes `game.fabricate.api` during
 its own `init`); if Fabricate is missing or incompatible the module warns the GM and stays inert
 rather than throwing. The public API is exposed at `game.modules.get("automate-fvtt").api`.
+
+### Keeps (Phase 1)
+A **Keep** is a custom Actor sub-type (`automate-fvtt.keep`) that owns a resource **stockpile**
+(`resource → qty`) and **count** scalars (henchmen, garden) which drive the count-based economy rules
+in Phase 3. Create and edit via the sheet, or the API:
+
+```js
+const api = game.modules.get("automate-fvtt").api.keeps;
+const keep = await api.create({ name: "Castle Greyhawk", counts: { henchmen: 2, garden: 3 } });
+await api.setResource(keep, "rations", 5);
+keep.sheet.render(true);
+```
 
 ## Local development setup
 1. Create a link from this repository to your Foundry data modules folder:

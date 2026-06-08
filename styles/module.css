@@ -1,3 +1,54 @@
-.automate-fvtt {
-  display: contents;
+.keep-sheet__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.5rem;
+}
+
+.keep-sheet__field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.keep-sheet__field label {
+  flex: 0 0 7rem;
+  font-weight: bold;
+}
+
+.keep-sheet__counts,
+.keep-sheet__stockpile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid var(--color-border-light-tertiary, #782e22);
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+.keep-sheet__resource {
+  display: grid;
+  grid-template-columns: 1fr 6rem auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.keep-sheet__resource-name {
+  font-variant: small-caps;
+  font-weight: bold;
+}
+
+.keep-sheet__remove {
+  flex: 0 0 auto;
+  width: 2rem;
+}
+
+.keep-sheet__empty {
+  font-style: italic;
+  opacity: 0.7;
+  margin: 0;
+}
+
+.keep-sheet__add {
+  align-self: flex-start;
 }

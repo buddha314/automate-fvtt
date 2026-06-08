@@ -14,10 +14,19 @@ export const SETTINGS = Object.freeze({
   DEBUG: "debug",
 });
 
+/**
+ * Actor sub-type id for a Keep. Foundry namespaces module sub-types as
+ * `<module-id>.<type>`, so this MUST match the `documentTypes.Actor` key in
+ * module.json (`keep`).
+ */
+export const KEEP_TYPE = `${MODULE_ID}.keep`;
+
 /** Hooks this module emits, for other code (and later phases) to listen on. */
 export const HOOKS = Object.freeze({
   /** Fired once after the Fabricate handshake resolves, with the FabricateAdapter. */
   READY: `${MODULE_ID}.ready`,
+  /** Fired with (keep) whenever a Keep actor's stockpile or counts change. */
+  KEEP_UPDATED: `${MODULE_ID}.keepUpdated`,
 });
 
 /**
