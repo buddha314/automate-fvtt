@@ -1,0 +1,30 @@
+{
+  "id": "automate-fvtt",
+  "title": "Automate FVTT",
+  "description": "A Foundry VTT module for automated and calendared crafting workflows.",
+  "version": "0.1.0",
+  "authors": [
+    {
+      "name": "buddha314"
+    }
+  ],
+  "compatibility": {
+    "minimum": "12",
+    "verified": "12"
+  },
+  "esmodules": [
+    "scripts/module.js"
+  ],
+  "styles": [
+    "styles/module.css"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "license": "LICENSE",
+  "readme": "README.md"
+}
