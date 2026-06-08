@@ -28,8 +28,9 @@ export const FABRICATE = Object.freeze({
   ID: "fabricate",
   /**
    * Known-good Fabricate version this module is developed and tested against.
-   * Fabricate is pre-1.0 with a shifting API, so a mismatch is a warning, not a
-   * hard failure — but the seam in fabricate-adapter.js is where breakage surfaces.
+   * Fabricate is pre-1.0 (1.0.0-rc line) with a shifting API, so a mismatch is a
+   * warning, not a hard failure — but the seam in fabricate-adapter.js is where
+   * breakage surfaces.
    */
-  KNOWN_GOOD_VERSION: "0.1.0",
+  KNOWN_GOOD_VERSION: "1.0.0-rc.57",
 });
