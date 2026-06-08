@@ -1,3 +1,5 @@
 {
-  "AUTOMATE_FVTT.ModuleName": "Automate FVTT"
+  "AUTOMATE_FVTT.ModuleName": "Automate FVTT",
+  "AUTOMATE_FVTT.Settings.Debug.Name": "Debug logging",
+  "AUTOMATE_FVTT.Settings.Debug.Hint": "Print verbose Automate FVTT diagnostics to the browser console."
 }
