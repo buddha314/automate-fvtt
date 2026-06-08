@@ -1,0 +1,39 @@
+{{!-- GM time controls (Phase 2). Rendered inside the ApplicationV2 window. --}}
+<div class="aft__content">
+
+  <div class="aft__now" data-tooltip="{{worldSeconds}}s">
+    <i class="fa-solid fa-clock"></i>
+    <span class="aft__now-value">{{now}}</span>
+  </div>
+
+  <button type="button" class="aft__next" data-action="next">
+    <i class="fa-solid fa-forward-step"></i> {{localize "AUTOMATE_FVTT.Time.Next"}} ({{stepLabel}})
+  </button>
+
+  <fieldset class="aft__presets">
+    <legend>{{localize "AUTOMATE_FVTT.Time.Advance"}}</legend>
+    <div class="aft__preset-row">
+      {{#each presets as |p|}}
+        <button type="button" data-action="preset" data-unit="{{p.unit}}"
+                data-tooltip="{{localize "AUTOMATE_FVTT.Time.PresetHint"}}">+1 {{p.label}}</button>
+      {{/each}}
+    </div>
+    <p class="aft__hint">{{localize "AUTOMATE_FVTT.Time.ShiftHint"}}</p>
+  </fieldset>
+
+  <fieldset class="aft__custom">
+    <legend>{{localize "AUTOMATE_FVTT.Time.Custom"}}</legend>
+    <div class="aft__custom-row">
+      <input type="number" name="customAmount" min="1" step="1" value="{{customAmount}}" />
+      <select name="customUnit">
+        {{#each units as |u|}}
+          <option value="{{u.value}}" {{#if u.selected}}selected{{/if}}>{{u.value}}</option>
+        {{/each}}
+      </select>
+      <button type="button" data-action="custom">
+        <i class="fa-solid fa-forward"></i> {{localize "AUTOMATE_FVTT.Time.Go"}}
+      </button>
+    </div>
+  </fieldset>
+
+</div>

@@ -37,6 +37,18 @@ await api.setResource(keep, "rations", 5);
 keep.sheet.render(true);
 ```
 
+### Time engine & GM controls (Phase 2)
+A single **tick dispatcher** listens to Foundry's `updateWorldTime` hook and fans the delta out
+to subscribers (`api.time.onTick(id, cb)`), then emits the `automate-fvtt.tick` hook — the one
+integration point the Phase 3 economy rules hang off. Interval math is deterministic and
+large-jump-safe: advancing a year in one step fires the same number of intervals as 365 daily
+steps.
+
+GMs drive time from the **Time Controls** panel (auto-opens for the GM; also a scene-control
+button, or `game.modules.get("automate-fvtt").api.time.open()`): a configurable **Next** button,
+preset jumps (+hour/day/week/month/year, Shift-click to rewind), and a custom amount/unit advance —
+all via `game.time.advance()`.
+
 ## Local development setup
 1. Create a link from this repository to your Foundry data modules folder:
    - Linux/macOS:

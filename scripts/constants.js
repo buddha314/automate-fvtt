@@ -12,6 +12,12 @@ export const MODULE_TITLE = "Automate FVTT";
 /** Settings keys, kept in one place to avoid stringly-typed drift. */
 export const SETTINGS = Object.freeze({
   DEBUG: "debug",
+  /** Unit for the time controls "Next" button (hour|day|week|month|year). */
+  TIME_STEP_UNIT: "timeStepUnit",
+  /** Amount of TIME_STEP_UNIT advanced per "Next" press. */
+  TIME_STEP_AMOUNT: "timeStepAmount",
+  /** Auto-open the GM time controls panel on load. */
+  AUTO_OPEN_CONTROLS: "autoOpenControls",
 });
 
 /**
@@ -30,6 +36,8 @@ export const HOOKS = Object.freeze({
   READY: `${MODULE_ID}.ready`,
   /** Fired with (keep) whenever a Keep actor's stockpile or counts change. */
   KEEP_UPDATED: `${MODULE_ID}.keepUpdated`,
+  /** Fired with ({worldTime, dt, prevTime}) on every world-time advance. */
+  TICK: `${MODULE_ID}.tick`,
 });
 
 /**

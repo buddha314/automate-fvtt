@@ -13,5 +13,19 @@
   "AUTOMATE_FVTT.Keep.AddResourceTitle": "Add a resource",
   "AUTOMATE_FVTT.Keep.Add": "Add",
   "AUTOMATE_FVTT.Keep.Remove": "Remove resource",
-  "AUTOMATE_FVTT.Keep.ResourceExists": "Resource \"{resource}\" already exists."
+  "AUTOMATE_FVTT.Keep.ResourceExists": "Resource \"{resource}\" already exists.",
+  "AUTOMATE_FVTT.Settings.StepUnit.Name": "Time step unit",
+  "AUTOMATE_FVTT.Settings.StepUnit.Hint": "Unit advanced by the time controls \"Next\" button.",
+  "AUTOMATE_FVTT.Settings.StepAmount.Name": "Time step amount",
+  "AUTOMATE_FVTT.Settings.StepAmount.Hint": "How many units the \"Next\" button advances.",
+  "AUTOMATE_FVTT.Settings.AutoOpen.Name": "Auto-open time controls",
+  "AUTOMATE_FVTT.Settings.AutoOpen.Hint": "Open the GM time controls panel automatically on load.",
+  "AUTOMATE_FVTT.Time.Title": "Time Controls",
+  "AUTOMATE_FVTT.Time.Next": "Next",
+  "AUTOMATE_FVTT.Time.Advance": "Advance",
+  "AUTOMATE_FVTT.Time.Custom": "Custom",
+  "AUTOMATE_FVTT.Time.Go": "Go",
+  "AUTOMATE_FVTT.Time.PresetHint": "Click to advance, Shift-click to rewind.",
+  "AUTOMATE_FVTT.Time.ShiftHint": "Shift-click a preset to rewind.",
+  "AUTOMATE_FVTT.Time.NoNegative": "Cannot rewind before the start of time."
 }
