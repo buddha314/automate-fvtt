@@ -13,7 +13,7 @@ This repository now contains the basic Foundry VTT module scaffold:
 1. Create a link from this repository to your Foundry data modules folder:
    - Linux/macOS:
      ```bash
-     ln -s /path/to/automate-fvtt ~/FoundryVTT/Data/modules/automate-fvtt
+     ln -s /absolute/path/to/automate-fvtt ~/FoundryVTT/Data/modules/automate-fvtt
      ```
    - Windows (PowerShell as Administrator):
      ```powershell
