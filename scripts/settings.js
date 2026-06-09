@@ -5,6 +5,7 @@
  */
 
 import { MODULE_ID, SETTINGS } from "./constants.js";
+import { STEP_UNITS } from "./time/time-util.js";
 
 /** Register all module settings. Call once during `init`. */
 export function registerSettings() {
@@ -15,5 +16,33 @@ export function registerSettings() {
     config: true,
     type: Boolean,
     default: false,
+  });
+
+  game.settings.register(MODULE_ID, SETTINGS.TIME_STEP_UNIT, {
+    name: "AUTOMATE_FVTT.Settings.StepUnit.Name",
+    hint: "AUTOMATE_FVTT.Settings.StepUnit.Hint",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: Object.fromEntries(STEP_UNITS.map((u) => [u, u])),
+    default: "day",
+  });
+
+  game.settings.register(MODULE_ID, SETTINGS.TIME_STEP_AMOUNT, {
+    name: "AUTOMATE_FVTT.Settings.StepAmount.Name",
+    hint: "AUTOMATE_FVTT.Settings.StepAmount.Hint",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 1,
+  });
+
+  game.settings.register(MODULE_ID, SETTINGS.AUTO_OPEN_CONTROLS, {
+    name: "AUTOMATE_FVTT.Settings.AutoOpen.Name",
+    hint: "AUTOMATE_FVTT.Settings.AutoOpen.Hint",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
   });
 }
