@@ -4,6 +4,7 @@
  * Phase 0: bootstrap + Fabricate handshake. Phase 1: Keep actor sub-type + sheet
  * + `keeps` API. Phase 2: world-time tick dispatcher + GM time-controls UI
  * (`api.time`), surfaced via a scene-control button and optional auto-open.
+ * Phase 3: economy rules engine (`api.rules`) driven off the tick dispatcher.
  * @module automate-fvtt
  */
 
@@ -17,11 +18,13 @@ import { keepsApi, registerKeepHooks } from "./keep-api.js";
 import { registerTickDispatcher, onTick } from "./time/tick-dispatcher.js";
 import { formatWorldTime } from "./time/time-util.js";
 import { TimeControls } from "./apps/time-controls.js";
+import { registerRulesEngine, applyTick } from "./rules/rule-engine.js";
+import { listRules, registerRule, unregisterRule, computeTickPlan } from "./rules/rules.js";
 import "./types.js"; // typedefs only
 
 /**
  * Module-wide state, published at `game.modules.get(MODULE_ID).api`.
- * @type {{ fabricate: FabricateAdapter, ready: boolean, keeps: typeof keepsApi, time: object }}
+ * @type {{ fabricate: FabricateAdapter, ready: boolean, keeps: typeof keepsApi, time: object, rules: object }}
  */
 const state = {
   fabricate: new FabricateAdapter(),
@@ -31,6 +34,13 @@ const state = {
     open: () => TimeControls.open(),
     toggle: () => TimeControls.toggle(),
     onTick,
+  },
+  rules: {
+    list: listRules,
+    register: registerRule,
+    unregister: unregisterRule,
+    computeTickPlan,
+    applyTick,
   },
 };
 
@@ -47,12 +57,15 @@ Hooks.once("init", () => {
   });
   registerKeepHooks();
 
-  // World-time tick dispatcher (Phase 2). A demo subscriber proves the fan-out;
-  // economy rules replace/augment it in Phase 3.
+  // World-time tick dispatcher (Phase 2). A demo subscriber proves the fan-out.
   registerTickDispatcher();
   onTick("demo-log", ({ dt, worldTime }) =>
     log.debug(`demo tick: +${dt}s -> ${formatWorldTime(worldTime)}`)
   );
+
+  // Economy rules engine (Phase 3): evaluates producers/consumers/upkeep/
+  // converters against each Keep on every tick. Registered after the dispatcher.
+  registerRulesEngine();
 
   // Add a scene-control button to toggle the time-controls panel (GM only).
   Hooks.on("getSceneControlButtons", (controls) => {
