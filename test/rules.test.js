@@ -14,11 +14,14 @@ import assert from "node:assert/strict";
 import { SECONDS } from "../scripts/time/time-util.js";
 import {
   DEFAULT_RULES,
+  DELIVERY,
   computeTickPlan,
   unitsFor,
+  effectiveDelivery,
   resetRules,
   listRules,
   registerRule,
+  setDelivery,
 } from "../scripts/rules/rules.js";
 
 /** A Keep `system` blob like Phase 1 persists. */
@@ -99,6 +102,42 @@ test("backward or sub-interval time produces nothing", () => {
 
   const subInterval = plan({ sp: 100 }, sys, 0, SECONDS.day - 1); // < 1 day
   assert.equal(subInterval.deltas.sp ?? 0, 0);
+});
+
+test("the default drill deposits straight into the Keep (adjacency optional)", () => {
+  const { result, ports, applications } = plan({ ore: 0 }, keepSystem(), 0, 10);
+  assert.equal(result.ore, 10); // landed in the stockpile
+  assert.deepEqual(ports, {}); // nothing held at a port
+  assert.equal(applications.find((a) => a.ruleId === "ore-drill").delivery, DELIVERY.KEEP);
+});
+
+test("port delivery holds output in a buffer, not the stockpile", () => {
+  resetRules();
+  setDelivery("ore-drill", DELIVERY.PORT);
+  const { result, ports } = computeTickPlan({ ore: 0 }, keepSystem(), listRules(), 0, 10);
+  assert.equal(result.ore ?? 0, 0); // stockpile untouched
+  assert.equal(ports["ore-drill"].ore, 10); // held at the port buffer
+  resetRules();
+});
+
+test("world default delivery applies to asset rules without their own setting", () => {
+  // A rule with no explicit delivery follows the passed default...
+  const rule = { id: "smelter", kind: "producer", binding: "asset", assetUnits: 1, intervalSeconds: 1, inputs: {}, outputs: { ingot: 1 } };
+  const routed = computeTickPlan({}, keepSystem(), [rule], 0, 5, { defaultDelivery: DELIVERY.PORT });
+  assert.equal(routed.ports["smelter"].ingot, 5);
+  const direct = computeTickPlan({}, keepSystem(), [rule], 0, 5, { defaultDelivery: DELIVERY.KEEP });
+  assert.equal(direct.result.ingot, 5);
+});
+
+test("count-based rules ignore delivery and always feed the Keep", () => {
+  const garden = DEFAULT_RULES.find((r) => r.id === "garden-rations");
+  assert.equal(effectiveDelivery(garden, DELIVERY.PORT), DELIVERY.KEEP);
+  // Even under a port-defaulted world, garden rations land in the stockpile.
+  const { result, ports } = computeTickPlan(
+    { rations: 0 }, keepSystem({ garden: 2 }), DEFAULT_RULES, 0, SECONDS.day, { defaultDelivery: DELIVERY.PORT }
+  );
+  assert.equal(result.rations, 4);
+  assert.equal(ports["garden-rations"], undefined);
 });
 
 test("registry can be extended and reset", () => {

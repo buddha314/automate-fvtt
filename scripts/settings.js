@@ -6,6 +6,7 @@
 
 import { MODULE_ID, SETTINGS } from "./constants.js";
 import { STEP_UNITS } from "./time/time-util.js";
+import { DELIVERY } from "./rules/rules.js";
 
 /** Register all module settings. Call once during `init`. */
 export function registerSettings() {
@@ -44,5 +45,18 @@ export function registerSettings() {
     config: true,
     type: Boolean,
     default: true,
+  });
+
+  game.settings.register(MODULE_ID, SETTINGS.DEFAULT_PRODUCER_DELIVERY, {
+    name: "AUTOMATE_FVTT.Settings.Delivery.Name",
+    hint: "AUTOMATE_FVTT.Settings.Delivery.Hint",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: {
+      [DELIVERY.KEEP]: "AUTOMATE_FVTT.Settings.Delivery.Keep",
+      [DELIVERY.PORT]: "AUTOMATE_FVTT.Settings.Delivery.Port",
+    },
+    default: DELIVERY.KEEP,
   });
 }

@@ -12,10 +12,11 @@
  * @module rules/rule-engine
  */
 
+import { MODULE_ID, SETTINGS } from "../constants.js";
 import { log } from "../logger.js";
 import { listKeeps } from "../keep-api.js";
 import { onTick } from "../time/tick-dispatcher.js";
-import { computeTickPlan, listRules } from "./rules.js";
+import { computeTickPlan, listRules, DELIVERY } from "./rules.js";
 
 /** Stable id for our subscription on the tick dispatcher. */
 const TICK_ID = "rules-engine";
@@ -46,23 +47,35 @@ function isAuthoritativeGM() {
 export async function applyTick({ prevTime, worldTime }) {
   if (!isAuthoritativeGM()) return;
   const rules = listRules();
+  const defaultDelivery =
+    game.settings?.get(MODULE_ID, SETTINGS.DEFAULT_PRODUCER_DELIVERY) ?? DELIVERY.KEEP;
 
   for (const keep of listKeeps()) {
     try {
-      const { deltas, applications } = computeTickPlan(
+      const { deltas, ports, applications } = computeTickPlan(
         keep.system?.stockpile ?? {},
         keep.system ?? {},
         rules,
         prevTime,
-        worldTime
+        worldTime,
+        { defaultDelivery }
       );
       if (!applications.length) continue;
 
       const update = {};
+      // Direct (`keep` delivery) outputs and all input draws → stockpile.
       for (const [res, d] of Object.entries(deltas)) {
         if (!d) continue;
         const current = Number(keep.system?.stockpile?.[res] ?? 0);
         update[`system.stockpile.${res}`] = Math.max(0, current + d);
+      }
+      // Routed (`port` delivery) outputs accumulate in per-buffer holds.
+      for (const [bufferKey, resources] of Object.entries(ports)) {
+        for (const [res, d] of Object.entries(resources)) {
+          if (!d) continue;
+          const current = Number(keep.system?.buffers?.[bufferKey]?.[res] ?? 0);
+          update[`system.buffers.${bufferKey}.${res}`] = Math.max(0, current + d);
+        }
       }
       if (Object.keys(update).length) {
         await keep.update(update);

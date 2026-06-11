@@ -33,6 +33,18 @@ export class KeepModel extends foundry.abstract.TypeDataModel {
 
       /** Ids of rules bound to this Keep (populated in Phase 3). */
       ruleIds: new fields.ArrayField(new fields.StringField({ blank: false })),
+
+      /**
+       * Port output buffers for producers set to `port` delivery: bufferKey
+       * (asset/rule id) → resource → quantity held, awaiting belt routing
+       * (Phase 7) or manual collection. Producers using `keep` delivery bypass
+       * this and deposit straight into {@link stockpile}.
+       */
+      buffers: new fields.TypedObjectField(
+        new fields.TypedObjectField(
+          new fields.NumberField({ required: true, nullable: false, initial: 0, min: 0 })
+        )
+      ),
     };
   }
 }

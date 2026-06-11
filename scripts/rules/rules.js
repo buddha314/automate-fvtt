@@ -28,6 +28,20 @@ import { SECONDS, intervalsElapsed } from "../time/time-util.js";
 export const KIND_ORDER = Object.freeze(["producer", "converter", "consumer", "upkeep"]);
 
 /**
+ * Where an asset-bound producer's output lands. Adjacency is **optional**: a
+ * producer can deposit straight into the Keep, or hold output at a port for a
+ * belt to route later.
+ * - `keep`  — deposit output directly into the Keep stockpile. No belt required.
+ * - `port`  — accumulate output in a per-asset buffer on the Keep, to be drained
+ *   by adjacency routing (Phase 7) or collected manually.
+ *
+ * Count-bound rules (henchmen, garden) have no map presence and therefore always
+ * deliver to the Keep — see {@link effectiveDelivery}.
+ * @enum {string}
+ */
+export const DELIVERY = Object.freeze({ KEEP: "keep", PORT: "port" });
+
+/**
  * The three worked economy rules from the epic (#5). Count-based rules scale by
  * a Keep config scalar and have **no map presence, ever**; the producer is
  * *logical now* (`assetUnits: 1`) and becomes asset-driven in Phase 6 — at which
@@ -57,6 +71,7 @@ export const DEFAULT_RULES = Object.freeze([
   },
   {
     // UC2 (logical): 1 ore/sec. Realized as a placed drill asset in Phase 6.
+    // Deposits straight into the Keep by default — adjacency/belts are optional.
     id: "ore-drill",
     kind: "producer",
     binding: "asset",
@@ -64,6 +79,7 @@ export const DEFAULT_RULES = Object.freeze([
     intervalSeconds: 1,
     inputs: {},
     outputs: { ore: 1 },
+    delivery: DELIVERY.KEEP,
   },
 ]);
 
@@ -112,6 +128,47 @@ export function unitsFor(keepSystem, rule) {
   return n > 0 ? n : 0;
 }
 
+/**
+ * Resolve where a rule's output goes. Count-bound rules have no port and always
+ * deliver to the Keep; an asset-bound rule uses its own `delivery`, falling back
+ * to the world default.
+ * @param {Rule} rule
+ * @param {DELIVERY} [defaultDelivery=DELIVERY.KEEP]  world-configured default for
+ *   asset rules that don't set their own
+ * @returns {DELIVERY}
+ */
+export function effectiveDelivery(rule, defaultDelivery = DELIVERY.KEEP) {
+  if (rule.binding !== "asset") return DELIVERY.KEEP;
+  return rule.delivery ?? defaultDelivery;
+}
+
+/**
+ * Buffer key for a port-delivering rule's output on the Keep. Keyed by the
+ * source asset when one exists (Phase 6), else by rule id.
+ * @param {Rule} rule
+ * @returns {string}
+ */
+export function bufferKeyFor(rule) {
+  return rule.assetId ?? rule.id;
+}
+
+/**
+ * Reconfigure a registered rule's delivery mode in place.
+ * @param {string} id
+ * @param {DELIVERY} mode
+ * @returns {Rule} the updated rule
+ */
+export function setDelivery(id, mode) {
+  const rule = registry.get(id);
+  if (!rule) throw new Error(`[automate-fvtt] no such rule: ${id}`);
+  if (mode !== DELIVERY.KEEP && mode !== DELIVERY.PORT) {
+    throw new Error(`[automate-fvtt] invalid delivery mode: ${mode}`);
+  }
+  const updated = { ...rule, delivery: mode };
+  registry.set(id, updated);
+  return updated;
+}
+
 /** Rules sorted into deterministic apply order. @param {Rule[]} rules @returns {Rule[]} */
 function sortRules(rules) {
   return [...rules].sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind));
@@ -131,18 +188,29 @@ function sortRules(rules) {
  * Backward or sub-interval time yields zero intervals → no change (guards the
  * classic backward-time accrual bug).
  *
+ * Outputs route by {@link effectiveDelivery}: `keep` outputs land in `deltas`
+ * (and the working copy, so a later rule can consume them this tick); `port`
+ * outputs land in `ports` (a separate per-buffer map) and are **not** added to
+ * the stockpile — they await routing/collection. Inputs always draw from the
+ * stockpile.
+ *
  * @param {Object<string, number>} stockpile  current resource → qty (not mutated)
  * @param {{counts?: Object<string, number>}} keepSystem  the Keep's `system` data
  * @param {Rule[]} rules
  * @param {number} prevTime   previous world time, seconds
  * @param {number} worldTime  new world time, seconds
- * @returns {{deltas: Object<string, number>, applications: {ruleId: string, units: number, intervals: number}[], result: Object<string, number>}}
- *   `deltas` = net change per resource; `applications` = what actually fired;
- *   `result` = the resulting stockpile (working copy).
+ * @param {{defaultDelivery?: DELIVERY}} [opts]  default delivery for asset rules
+ *   that don't set their own (the world setting)
+ * @returns {{deltas: Object<string, number>, ports: Object<string, Object<string, number>>, applications: {ruleId: string, units: number, intervals: number, delivery: DELIVERY}[], result: Object<string, number>}}
+ *   `deltas` = net stockpile change per resource; `ports` = bufferKey → resource →
+ *   amount held at a port; `applications` = what actually fired; `result` = the
+ *   resulting stockpile (working copy).
  */
-export function computeTickPlan(stockpile, keepSystem, rules, prevTime, worldTime) {
+export function computeTickPlan(stockpile, keepSystem, rules, prevTime, worldTime, opts = {}) {
+  const defaultDelivery = opts.defaultDelivery ?? DELIVERY.KEEP;
   const work = { ...(stockpile ?? {}) };
   const deltas = {};
+  const ports = {};
   const applications = [];
 
   for (const rule of sortRules(rules)) {
@@ -166,13 +234,20 @@ export function computeTickPlan(stockpile, keepSystem, rules, prevTime, worldTim
       work[res] = Number(work[res] ?? 0) + d;
       deltas[res] = (deltas[res] ?? 0) + d;
     }
+
+    const delivery = effectiveDelivery(rule, defaultDelivery);
+    const bufferKey = delivery === DELIVERY.PORT ? bufferKeyFor(rule) : null;
     for (const [res, amt] of Object.entries(rule.outputs ?? {})) {
       const d = units * amt * intervals;
-      work[res] = Number(work[res] ?? 0) + d;
-      deltas[res] = (deltas[res] ?? 0) + d;
+      if (delivery === DELIVERY.PORT) {
+        (ports[bufferKey] ??= {})[res] = (ports[bufferKey][res] ?? 0) + d;
+      } else {
+        work[res] = Number(work[res] ?? 0) + d;
+        deltas[res] = (deltas[res] ?? 0) + d;
+      }
     }
-    applications.push({ ruleId: rule.id, units, intervals });
+    applications.push({ ruleId: rule.id, units, intervals, delivery });
   }
 
-  return { deltas, applications, result: work };
+  return { deltas, ports, applications, result: work };
 }

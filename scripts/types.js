@@ -26,6 +26,9 @@
  * @property {Object<string, number>} counts  Count-based config scalars, e.g.
  *                                            `{ henchmen: 2, garden: 3 }`.
  * @property {string[]} ruleIds           Rules bound to this Keep.
+ * @property {Object<string, Object<string, number>>} buffers  Port output holds:
+ *                                            bufferKey → resource → qty, for
+ *                                            producers using `port` delivery.
  */
 
 /**
@@ -56,6 +59,12 @@
  * @property {Object<string, number>} outputs  Resource → amount produced per interval.
  * @property {?string} countKey           For `count` binding: key into {@link Keep.counts}.
  * @property {?string} assetId            For `asset` binding: the source {@link Asset}.
+ * @property {?number} assetUnits         For `asset` binding: logical unit count
+ *                                            until placed assets exist (Phase 6).
+ * @property {?("keep"|"port")} delivery  For `asset` binding: where output lands —
+ *                                            `keep` deposits directly (adjacency
+ *                                            optional), `port` holds for routing.
+ *                                            Count rules always deliver to the Keep.
  */
 
 /**

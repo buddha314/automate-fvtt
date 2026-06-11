@@ -19,7 +19,7 @@ import { registerTickDispatcher, onTick } from "./time/tick-dispatcher.js";
 import { formatWorldTime } from "./time/time-util.js";
 import { TimeControls } from "./apps/time-controls.js";
 import { registerRulesEngine, applyTick } from "./rules/rule-engine.js";
-import { listRules, registerRule, unregisterRule, computeTickPlan } from "./rules/rules.js";
+import { listRules, registerRule, unregisterRule, computeTickPlan, setDelivery, DELIVERY } from "./rules/rules.js";
 import "./types.js"; // typedefs only
 
 /**
@@ -41,6 +41,11 @@ const state = {
     unregister: unregisterRule,
     computeTickPlan,
     applyTick,
+    /** Switch a producer between `keep` (direct) and `port` (routed) delivery. */
+    setDelivery,
+    /** Collect a Keep's port buffers into its stockpile (manual routing). */
+    collectPorts: keepsApi.collectPorts,
+    DELIVERY,
   },
 };
 
