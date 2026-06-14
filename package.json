@@ -1,0 +1,10 @@
+{
+  "name": "automate-fvtt",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Dev tooling for the Automate FVTT Foundry module. Foundry loads scripts/ directly as ES modules and ignores this file; it exists only so Node's built-in test runner can exercise the pure logic (e.g. the Phase 3 rules core).",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

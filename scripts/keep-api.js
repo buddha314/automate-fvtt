@@ -106,6 +106,38 @@ export async function setCount(keepOrId, key, value) {
 }
 
 /**
+ * Move resources held in a Keep's port buffers into its stockpile — the manual
+ * collection path for producers using `port` delivery, until belt routing
+ * (Phase 7) drains them automatically. Adds each buffered amount to the matching
+ * stockpile resource and clears the drained buffers.
+ * @param {Actor|string} keepOrId
+ * @param {?string} [bufferKey=null]  collect only this buffer; null collects all
+ * @returns {Promise<Actor>}
+ */
+export async function collectPorts(keepOrId, bufferKey = null) {
+  const keep = resolveKeep(keepOrId);
+  const buffers = keep.system?.buffers ?? {};
+  const keys = bufferKey ? [bufferKey] : Object.keys(buffers);
+  const update = {};
+
+  for (const key of keys) {
+    const held = buffers[key];
+    if (!held) continue;
+    for (const [res, qty] of Object.entries(held)) {
+      const amount = Number(qty) || 0;
+      if (amount <= 0) continue;
+      const path = `system.stockpile.${res}`;
+      const base = update[path] ?? Number(keep.system?.stockpile?.[res] ?? 0);
+      update[path] = base + amount;
+    }
+    update[`system.buffers.-=${key}`] = null; // clear the drained buffer
+  }
+
+  if (Object.keys(update).length) await keep.update(update);
+  return keep;
+}
+
+/**
  * @param {Actor|string} keepOrId
  * @returns {Actor}
  * @throws if the argument does not resolve to a Keep actor.
@@ -141,4 +173,5 @@ export const keepsApi = {
   adjustResource,
   removeResource,
   setCount,
+  collectPorts,
 };

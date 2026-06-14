@@ -18,6 +18,12 @@ export const SETTINGS = Object.freeze({
   TIME_STEP_AMOUNT: "timeStepAmount",
   /** Auto-open the GM time controls panel on load. */
   AUTO_OPEN_CONTROLS: "autoOpenControls",
+  /**
+   * Default delivery mode for asset-bound producers that don't set their own:
+   * `keep` deposits output straight into the Keep stockpile (adjacency optional),
+   * `port` holds it in a buffer for belt routing (Phase 7).
+   */
+  DEFAULT_PRODUCER_DELIVERY: "defaultProducerDelivery",
 });
 
 /**
