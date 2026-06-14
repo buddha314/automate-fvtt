@@ -5,6 +5,9 @@
  * + `keeps` API. Phase 2: world-time tick dispatcher + GM time-controls UI
  * (`api.time`), surfaced via a scene-control button and optional auto-open.
  * Phase 3: economy rules engine (`api.rules`) driven off the tick dispatcher.
+ * Phase 4: Fabricate-backed rules — auto-harvest resource nodes and run recipes
+ * as Keep converters, projecting Fabricate component inventory into the
+ * stockpile through the adapter seam.
  * @module automate-fvtt
  */
 
@@ -18,9 +21,31 @@ import { keepsApi, registerKeepHooks } from "./keep-api.js";
 import { registerTickDispatcher, onTick } from "./time/tick-dispatcher.js";
 import { formatWorldTime } from "./time/time-util.js";
 import { TimeControls } from "./apps/time-controls.js";
-import { registerRulesEngine, applyTick } from "./rules/rule-engine.js";
+import { registerRulesEngine, applyTick, configureFabricate } from "./rules/rule-engine.js";
 import { listRules, registerRule, unregisterRule, computeTickPlan, setDelivery, DELIVERY } from "./rules/rules.js";
+import { createComponentMap } from "./fabricate/component-map.js";
+import { FAB_OP, makeFabricateRule } from "./fabricate/fabricate-rules.js";
 import "./types.js"; // typedefs only
+
+/**
+ * Current Fabricate component ↔ stockpile resource mapping pairs, settable at
+ * runtime via `api.rules.setComponentMap`. Rebuilds the engine's map in place.
+ * @type {{componentId: string, resourceKey: string}[]}
+ */
+let componentMapPairs = [];
+
+/**
+ * Replace the component map the rules engine uses to project Fabricate inventory
+ * into Keep stockpiles, re-injecting it alongside the current adapter.
+ * @param {{componentId: string, resourceKey: string}[]} pairs
+ */
+function setComponentMap(pairs = []) {
+  componentMapPairs = [...pairs];
+  configureFabricate({
+    adapter: state.fabricate,
+    componentMap: createComponentMap(componentMapPairs),
+  });
+}
 
 /**
  * Module-wide state, published at `game.modules.get(MODULE_ID).api`.
@@ -46,6 +71,12 @@ const state = {
     /** Collect a Keep's port buffers into its stockpile (manual routing). */
     collectPorts: keepsApi.collectPorts,
     DELIVERY,
+    // Phase 4 — Fabricate-backed rules.
+    /** Build a harvest/craft rule that delegates its effect to Fabricate. */
+    makeFabricateRule,
+    /** Configure the Fabricate component ↔ stockpile resource mapping. */
+    setComponentMap,
+    FAB_OP,
   },
 };
 
@@ -93,6 +124,13 @@ Hooks.once("init", () => {
 Hooks.once("ready", () => {
   const ok = state.fabricate.handshake();
   state.ready = ok;
+
+  // Phase 4: hand the (now-acquired) adapter to the rules engine so Fabricate-
+  // backed rules can run. Identity component map until a world configures one.
+  configureFabricate({
+    adapter: state.fabricate,
+    componentMap: createComponentMap(componentMapPairs),
+  });
 
   if (ok) log.info("Automate FVTT ready.");
   else if (game.user?.isGM) {
