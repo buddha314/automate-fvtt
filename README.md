@@ -1,6 +1,10 @@
 # automate-fvtt
 A Foundry VTT plugin to offer automated or calendared crafting for simulation games. "Factorio on Foundry"
 
+My intention is to build this module backwards from a module. This should allow me to focus on what will be useful in game play. Currently, I am developing a Pathfinder module in parallel called [Bandits On The River](https://github.com/buddha314/bandits-on-the-river). Pathfinder 2E has open source rules and a sense of crafting, so that system makes for a good test bed.
+
+This approach also allows Automate to work from gameplay backwards to the Fabricate module, reducing overlap.
+
 ## Module scaffold
 This repository contains the Foundry VTT module scaffold and the Phase 0 foundation:
 
