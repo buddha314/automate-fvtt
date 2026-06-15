@@ -92,7 +92,7 @@ test("makeFabricateRule defaults kind from op and empties numeric flows", () => 
   const harvest = makeFabricateRule({
     id: "iron-node",
     intervalSeconds: SECONDS.day,
-    fabricate: { op: FAB_OP.HARVEST, nodeId: "node.iron" },
+    fabricate: { op: FAB_OP.HARVEST, environmentId: "env.river", taskId: "task.fish" },
   });
   assert.equal(harvest.kind, "producer");
   assert.deepEqual(harvest.inputs, {});
@@ -115,7 +115,7 @@ test("a Fabricate rule fires intervals in the pure plan without moving the ledge
   const rule = makeFabricateRule({
     id: "iron-node",
     intervalSeconds: SECONDS.day,
-    fabricate: { op: FAB_OP.HARVEST, nodeId: "node.iron" },
+    fabricate: { op: FAB_OP.HARVEST, environmentId: "env.river", taskId: "task.fish" },
   });
   const { deltas, applications } = computeTickPlan({ ore: 0 }, { counts: {} }, [rule], 0, 3 * SECONDS.day);
   assert.deepEqual(deltas, {}, "no numeric delta — the effect is Fabricate's");
@@ -129,13 +129,14 @@ test("planFabricateOps turns harvest applications into ops by units x intervals"
     id: "iron-node",
     intervalSeconds: SECONDS.day,
     assetUnits: 2, // two nodes
-    fabricate: { op: FAB_OP.HARVEST, nodeId: "node.iron" },
+    fabricate: { op: FAB_OP.HARVEST, environmentId: "env.river", taskId: "task.fish" },
   });
   const { applications } = computeTickPlan({}, { counts: {} }, [rule], 0, 3 * SECONDS.day);
   const ops = planFabricateOps(applications, [rule], {});
   assert.equal(ops.length, 1);
   assert.equal(ops[0].op, FAB_OP.HARVEST);
-  assert.equal(ops[0].nodeId, "node.iron");
+  assert.equal(ops[0].environmentId, "env.river");
+  assert.equal(ops[0].taskId, "task.fish");
   assert.equal(ops[0].times, 6); // 2 units x 3 intervals
 });
 

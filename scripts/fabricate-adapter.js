@@ -188,27 +188,57 @@ export class FabricateAdapter {
   }
 
   /**
-   * Auto-resolve gathering on a Fabricate resource node, depositing the yield on
-   * `actor` (the Keep). Reuses Fabricate's own world-time node respawn — we only
-   * pull the currently-available yield, we do not roll our own respawn clock.
+   * Start a Fabricate **gathering attempt** for `actor` at a scene-linked
+   * environment + task. This is the real gathering surface in Fabricate rc.87
+   * (Gathering is the one implemented player feature; Crafting is "Coming soon").
+   *
+   * A timed task creates an *active gathering run* and **Fabricate resolves it on
+   * world-time itself** — it hooks `updateWorldTime` and advances its own runs —
+   * so our tick dispatcher already drives completion; we do not poll. Yield lands
+   * in `actor`'s inventory; sweeping that into a Keep stockpile is a separate step.
+   *
+   * Public entry point: `game.fabricate.startGatheringAttempt(options)`, which
+   * enforces the current user as viewer. Requires an active GM and a system with
+   * `features.gathering === true`.
+   *
    * @param {object} args
-   * @param {string} args.nodeId
-   * @param {Actor} args.actor  the Keep to deposit into
-   * @returns {Promise<boolean>} true if a harvest was attempted
+   * @param {Actor} args.actor          the gatherer (e.g. a village NPC or a PC)
+   * @param {string} args.environmentId scene-linked gathering environment id
+   * @param {string} args.taskId        gathering task within that environment
+   * @returns {Promise<object|null>} the attempt result, or null when unavailable.
    */
-  async harvest({ nodeId, actor } = {}) {
-    if (!this.#available || !nodeId || !actor) return false;
-    const m = this.#resolve(["harvest", "gather", "gatherNode", "harvestNode"]);
+  async startGathering({ actor, environmentId, taskId } = {}) {
+    if (!this.#available || !environmentId) return null;
+    const m = this.#resolve(["startGatheringAttempt"]);
     if (!m) {
-      log.warn(`Fabricate exposes no harvest method; node "${nodeId}" not gathered.`);
-      return false;
+      log.warn("Fabricate exposes no startGatheringAttempt; gathering not started.");
+      return null;
     }
     try {
-      await m.fn.call(m.ctx, { nodeId, actor, gatheringActor: actor });
-      return true;
+      return await m.fn.call(m.ctx, { actor, environmentId, taskId });
     } catch (err) {
-      log.warn(`Fabricate harvest of node "${nodeId}" failed: ${err?.message ?? err}`);
-      return false;
+      log.warn(`Fabricate gathering attempt failed (env "${environmentId}"): ${err?.message ?? err}`);
+      return null;
+    }
+  }
+
+  /**
+   * Read a gathering task's "what you might find" drop breakdown (no side effects)
+   * — useful for previewing yields without starting an attempt.
+   * @param {object} args
+   * @param {string} args.environmentId
+   * @param {string} args.taskId
+   * @returns {object|null}
+   */
+  gatheringDropBreakdown({ environmentId, taskId } = {}) {
+    if (!this.#available) return null;
+    const m = this.#resolve(["getGatheringDropBreakdown"]);
+    if (!m) return null;
+    try {
+      return m.fn.call(m.ctx, { environmentId, taskId });
+    } catch (err) {
+      log.warn(`Fabricate drop breakdown failed: ${err?.message ?? err}`);
+      return null;
     }
   }
 

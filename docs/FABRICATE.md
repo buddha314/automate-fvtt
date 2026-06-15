@@ -52,11 +52,14 @@ api.rules.setComponentMap([
   { componentId: "fab.iron-ingot", resourceKey: "ingot" },
 ]);
 
-// Auto-harvest a resource node once per day (reuses Fabricate's node respawn).
+// Auto-gather from a scene-linked Fabricate environment/task once per day. The
+// Keep is the gatherer; Fabricate creates a timed run and resolves it on its own
+// world-time hook (which our tick advances), and the yield projects back into the
+// stockpile. Gathering is the implemented Fabricate feature in rc.87.
 api.rules.register(api.rules.makeFabricateRule({
-  id: "iron-node",
+  id: "river-fishing",
   intervalSeconds: 86400,
-  fabricate: { op: api.rules.FAB_OP.HARVEST, nodeId: "node.iron" },
+  fabricate: { op: api.rules.FAB_OP.HARVEST, environmentId: "env.river", taskId: "task.fish" },
 }));
 
 // Run a smelting recipe hourly, capped by the ore on hand.
@@ -103,13 +106,23 @@ Two artifacts, two pipelines:
 
 ## Notes & limits
 
+- **rc.87 feature status:** in Fabricate **1.0.0-rc.87 the only implemented
+  player feature is Gathering** — the Crafting/Alchemy/Journal/Inventory tabs are
+  "Coming soon". So the **harvest** path (gathering) is live, while the **craft**
+  path is **parked** until Fabricate ships its Crafting tab. Until then, model
+  crafting with the engine's own numeric **converter** rules.
+- **Gathering shape:** a harvest rule starts a Fabricate gathering attempt for the
+  Keep at a scene-linked `environmentId` + `taskId`. Fabricate creates a timed run
+  and resolves it on its **own** `updateWorldTime` hook (which our tick advances),
+  so we start one attempt per fired rule and let the elapsed span drive the yield;
+  it lands in the Keep's inventory and projects into the stockpile.
 - **Degrades cleanly:** when Fabricate is absent or its handshake fails, the
   engine runs as the pure Phase 3 numeric economy; Fabricate rules simply
   no-op (logged).
-- **API drift:** the adapter resolves Fabricate methods (`craft`, `harvest`,
-  `getInventory`, …) by name at call time across `game.fabricate` and its `api`,
-  and degrades to a logged no-op when a method is missing. This is the one place
-  to touch when upstream settles — see `dependency-strategy` notes and
+- **API drift:** the adapter resolves Fabricate methods (`startGatheringAttempt`,
+  `craft`, `getInventory`, …) by name at call time across `game.fabricate` and its
+  `api`, and degrades to a logged no-op when a method is missing. This is the one
+  place to touch when upstream settles — see `dependency-strategy` notes and
   [fabricate#345](https://github.com/mistersilver-uk/fabricate/issues/345).
 - **Per-tick op cap:** harvests/crafts are capped at `MAX_FAB_OPS_PER_RULE`
   (1000) per rule per tick; any remainder lands on the next tick (logged).
