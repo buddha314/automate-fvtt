@@ -25,8 +25,7 @@
       {
         "id": "fabricate",
         "type": "module",
-        "manifest": "https://github.com/mistersilver-uk/fabricate/releases/latest/download/module.json",
-        "reason": "Provides the system-agnostic crafting + gathering data model (recipes, resource nodes, world-time-driven regen/respawn) this module builds its Keep economy on top of."
+        "reason": "Provides the system-agnostic crafting + gathering data model (recipes, resource nodes, world-time-driven regen/respawn) this module builds its Keep economy on top of. No `manifest` URL on purpose: Fabricate ships almost daily as GitHub prereleases that `releases/latest` skips, so we keep the locally-installed build current via tools/sync-fabricate.sh rather than letting Foundry re-pull a stale release."
       }
     ],
     "recommends": [

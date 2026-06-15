@@ -58,5 +58,5 @@ export const FABRICATE = Object.freeze({
    * warning, not a hard failure — but the seam in fabricate-adapter.js is where
    * breakage surfaces.
    */
-  KNOWN_GOOD_VERSION: "1.0.0-rc.57",
+  KNOWN_GOOD_VERSION: "1.0.0-rc.87",
 });
