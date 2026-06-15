@@ -150,6 +150,17 @@ export async function applyTick({ prevTime, worldTime }) {
  */
 async function runFabricateOps(fab, keep, ops) {
   for (const op of ops) {
+    if (op.op === FAB_OP.HARVEST) {
+      // Gathering: start ONE attempt for the Keep (the gatherer) at the bound
+      // environment/task. Fabricate creates a timed run and resolves it on its
+      // own world-time hook — which our tick advances — so we don't loop `times`;
+      // the elapsed span drives how much the run yields. Yield lands in the Keep's
+      // inventory and is projected into the stockpile by syncFabricateInventory.
+      await fab.startGathering({ actor: keep, environmentId: op.environmentId, taskId: op.taskId });
+      continue;
+    }
+    // Crafting (parked until Fabricate ships it): run the recipe `times` times,
+    // capped so a big time jump doesn't hammer the API in one tick.
     const times = Math.min(op.times, MAX_FAB_OPS_PER_RULE);
     if (times < op.times) {
       log.warn(
@@ -158,11 +169,7 @@ async function runFabricateOps(fab, keep, ops) {
       );
     }
     for (let i = 0; i < times; i++) {
-      if (op.op === FAB_OP.HARVEST) {
-        await fab.harvest({ nodeId: op.nodeId, actor: keep });
-      } else if (op.op === FAB_OP.CRAFT) {
-        await fab.craft({ recipeId: op.recipeId, actor: keep, ingredientSetId: op.ingredientSetId });
-      }
+      await fab.craft({ recipeId: op.recipeId, actor: keep, ingredientSetId: op.ingredientSetId });
     }
   }
 }

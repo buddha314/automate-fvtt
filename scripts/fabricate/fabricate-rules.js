@@ -28,7 +28,8 @@ export const FAB_OP = Object.freeze({
 /**
  * @typedef {Object} FabricateSpec
  * @property {"harvest"|"craft"} op
- * @property {string} [nodeId]            Resource node id (harvest).
+ * @property {string} [environmentId]     Scene-linked gathering environment id (harvest).
+ * @property {string} [taskId]            Gathering task within the environment (harvest).
  * @property {string} [recipeId]          Recipe id (craft).
  * @property {string} [ingredientSetId]   Optional Fabricate ingredient-set selector (craft).
  * @property {Object<string, number>} [ingredients]  resourceKey → amount consumed
@@ -41,8 +42,9 @@ export const FAB_OP = Object.freeze({
  * @typedef {Object} FabricateOp
  * @property {string} ruleId
  * @property {"harvest"|"craft"} op
- * @property {number} times              How many times to run this op this tick.
- * @property {string} [nodeId]
+ * @property {number} times              How many times to run this op this tick (craft only; harvest starts one run).
+ * @property {string} [environmentId]
+ * @property {string} [taskId]
  * @property {string} [recipeId]
  * @property {string} [ingredientSetId]
  */
@@ -138,7 +140,8 @@ export function planFabricateOps(applications, rules, stockpile = {}) {
       ruleId: rule.id,
       op: fab.op,
       times,
-      ...(fab.nodeId ? { nodeId: fab.nodeId } : {}),
+      ...(fab.environmentId ? { environmentId: fab.environmentId } : {}),
+      ...(fab.taskId ? { taskId: fab.taskId } : {}),
       ...(fab.recipeId ? { recipeId: fab.recipeId } : {}),
       ...(fab.ingredientSetId ? { ingredientSetId: fab.ingredientSetId } : {}),
     });
