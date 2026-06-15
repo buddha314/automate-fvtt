@@ -59,4 +59,14 @@ export const FABRICATE = Object.freeze({
    * breakage surfaces.
    */
   KNOWN_GOOD_VERSION: "1.0.0-rc.87",
+  /**
+   * Crafting-system export JSONs (Fabricate "Export System" payloads) this module
+   * ships and seeds into Fabricate on `ready`, idempotently. Each entry is a path
+   * **relative to the module root** under `data/fabricate/`; the engine resolves
+   * it to `modules/automate-fvtt/<path>`. Author the system once in Fabricate's
+   * UI, Export System → JSON, drop it in `data/fabricate/`, and list it here.
+   * Empty by default — no system is seeded until you add one.
+   * @type {string[]}
+   */
+  SEED_SYSTEMS: [],
 });

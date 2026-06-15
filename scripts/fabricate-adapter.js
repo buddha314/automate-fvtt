@@ -242,6 +242,151 @@ export class FabricateAdapter {
     }
   }
 
+  /* ---------------------------------------------------------------- */
+  /* Crafting-system seeding (provide Fabricate with recipes/nodes)   */
+  /*                                                                  */
+  /* Fabricate can export a whole crafting system — essences,         */
+  /* components, recipes, and gathering realms — to a JSON envelope    */
+  /* `{ fabricateVersion, exportedAt, system, recipes }`, and import   */
+  /* it back via `game.fabricate.importSystemFromFile`, which accepts  */
+  /* a raw JSON STRING (no file picker). So a module can ship that     */
+  /* JSON and seed it on load. Confirmed against Fabricate 1.0.0-rc.87 */
+  /* (src/systems/CraftingSystemExporter.js). Canvas node *placements* */
+  /* live on Scenes/tiles and ship separately as a scene pack.         */
+  /* ---------------------------------------------------------------- */
+
+  /** @returns {object|null} Fabricate's crafting-system manager, or null. */
+  getCraftingSystemManager() {
+    if (!this.#available) return null;
+    try {
+      return this.#ns?.getCraftingSystemManager?.() ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * @param {string} systemId
+   * @returns {object|null} the crafting system with this id, or null if absent.
+   */
+  getSystem(systemId) {
+    try {
+      return this.getCraftingSystemManager()?.getSystem?.(systemId) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** @returns {object[]} all crafting systems Fabricate currently knows. */
+  listSystems() {
+    try {
+      return this.getCraftingSystemManager()?.getSystems?.() ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Validate a parsed export envelope against Fabricate's own checker.
+   * @param {object} data  parsed export JSON
+   * @returns {{valid: boolean, errors: string[], warnings: string[]}}
+   */
+  validateImportData(data) {
+    const exporter = this.#api?.CraftingSystemExporter;
+    if (typeof exporter?.validateImportData !== "function") {
+      return { valid: true, errors: [], warnings: ["validator unavailable"] };
+    }
+    try {
+      return exporter.validateImportData(data);
+    } catch (err) {
+      return { valid: false, errors: [String(err?.message ?? err)], warnings: [] };
+    }
+  }
+
+  /**
+   * Serialize an existing crafting system to its export envelope (the JSON you'd
+   * commit and ship). Mirrors Fabricate's "Export System".
+   * @param {string} systemId
+   * @returns {object|null} export payload, or null when unavailable.
+   */
+  exportSystem(systemId) {
+    if (!this.#available) return null;
+    try {
+      return this.#ns?.exportSystem?.(systemId) ?? null;
+    } catch (err) {
+      log.warn(`Fabricate exportSystem("${systemId}") failed: ${err?.message ?? err}`);
+      return null;
+    }
+  }
+
+  /**
+   * Import a crafting system from an export envelope — the low-level wrapper
+   * around `game.fabricate.importSystemFromFile`, which takes a raw JSON string.
+   * @param {string|object} jsonOrData  export JSON as a string, or a parsed object
+   * @param {object} [options]
+   * @param {boolean} [options.overwriteExisting=false]  replace matching docs
+   * @param {boolean} [options.copyMode=false]  import under fresh ids instead of preserving them
+   * @returns {Promise<object|null>} importer result ({added, updated, skipped, …}) or null.
+   */
+  async importSystem(jsonOrData, { overwriteExisting = false, copyMode = false } = {}) {
+    if (!this.#available) return null;
+    const fn = this.#ns?.importSystemFromFile;
+    if (typeof fn !== "function") {
+      log.warn("Fabricate exposes no importSystemFromFile; cannot seed system.");
+      return null;
+    }
+    const text = typeof jsonOrData === "string" ? jsonOrData : JSON.stringify(jsonOrData);
+    try {
+      return await fn.call(this.#ns, text, { overwriteExisting, copyMode });
+    } catch (err) {
+      log.warn(`Fabricate importSystem failed: ${err?.message ?? err}`);
+      return null;
+    }
+  }
+
+  /**
+   * Idempotently seed a crafting system from a JSON export the module ships.
+   * Fetches `url`, derives the system id from the payload, and — unless the
+   * system already exists (and `overwriteExisting` is false) — imports it. Safe
+   * to call on every `ready`; an already-present system is skipped, not duplicated.
+   *
+   * @param {string} url  module-relative path, e.g.
+   *   `modules/automate-fvtt/data/fabricate/keep-economy.json`
+   * @param {object} [options]
+   * @param {boolean} [options.overwriteExisting=false]
+   * @returns {Promise<{seeded: boolean, reason?: string, systemId?: string, result?: object}>}
+   */
+  async seedSystem(url, { overwriteExisting = false } = {}) {
+    if (!this.#available) return { seeded: false, reason: "fabricate-unavailable" };
+    let data;
+    try {
+      data = await foundry.utils.fetchJsonWithTimeout(url);
+    } catch (err) {
+      log.warn(`seedSystem: could not load "${url}": ${err?.message ?? err}`);
+      return { seeded: false, reason: "fetch-failed" };
+    }
+
+    const systemId = data?.system?.id ?? null;
+    const systemName = data?.system?.name ?? systemId ?? "(unnamed)";
+
+    if (systemId && this.getSystem(systemId) && !overwriteExisting) {
+      log.debug(`seedSystem: "${systemName}" (${systemId}) already present — skipping.`);
+      return { seeded: false, reason: "already-present", systemId };
+    }
+
+    const { valid, errors, warnings } = this.validateImportData(data);
+    for (const w of warnings ?? []) log.warn(`seedSystem("${systemName}"): ${w}`);
+    if (!valid) {
+      log.warn(`seedSystem: "${url}" failed validation: ${(errors ?? []).join("; ")}`);
+      return { seeded: false, reason: "invalid", systemId };
+    }
+
+    const result = await this.importSystem(data, { overwriteExisting });
+    if (!result) return { seeded: false, reason: "import-failed", systemId };
+    log.info(`seedSystem: imported "${systemName}" (${systemId ?? "?"}).`);
+    return { seeded: true, systemId, result };
+  }
+
   /**
    * Warn (do not fail) when the detected version differs from the known-good pin.
    * @param {string|undefined} actual
