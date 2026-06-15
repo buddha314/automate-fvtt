@@ -11,7 +11,7 @@
  * @module automate-fvtt
  */
 
-import { MODULE_ID, KEEP_TYPE, HOOKS, SETTINGS } from "./constants.js";
+import { MODULE_ID, KEEP_TYPE, HOOKS, SETTINGS, FABRICATE } from "./constants.js";
 import { log } from "./logger.js";
 import { registerSettings } from "./settings.js";
 import { FabricateAdapter } from "./fabricate-adapter.js";
@@ -145,5 +145,41 @@ Hooks.once("ready", () => {
     TimeControls.open();
   }
 
+  // Phase 4: seed any crafting systems this module ships (recipes + gathering
+  // realms) into Fabricate. Idempotent, and only the primary GM writes so a
+  // multi-client world imports once. Fire-and-forget; results are logged.
+  if (ok && FABRICATE.SEED_SYSTEMS.length && isPrimaryGM()) {
+    void seedFabricateSystems();
+  }
+
   Hooks.callAll(HOOKS.READY, state.fabricate, ok);
 });
+
+/**
+ * Is this client the single authoritative GM? Prefers Foundry's elected active
+ * GM, falling back to plain GM. Keeps module-level side effects (like seeding a
+ * Fabricate system) to one writer in a multi-client world.
+ * @returns {boolean}
+ */
+function isPrimaryGM() {
+  const users = game.users;
+  if (users?.activeGM) return users.activeGM === game.user;
+  return !!game.user?.isGM;
+}
+
+/**
+ * Seed each configured crafting-system export into Fabricate, in order.
+ * @returns {Promise<void>}
+ */
+async function seedFabricateSystems() {
+  for (const path of FABRICATE.SEED_SYSTEMS) {
+    const url = `modules/${MODULE_ID}/${path}`;
+    try {
+      const res = await state.fabricate.seedSystem(url);
+      if (res.seeded) log.info(`Seeded Fabricate system from ${path} (${res.systemId}).`);
+      else log.debug(`Fabricate seed skipped for ${path}: ${res.reason}.`);
+    } catch (err) {
+      log.error(`Fabricate seed failed for ${path}:`, err);
+    }
+  }
+}

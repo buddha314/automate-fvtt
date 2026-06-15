@@ -71,6 +71,36 @@ api.rules.register(api.rules.makeFabricateRule({
 }));
 ```
 
+## Providing recipes & nodes (seeding a crafting system)
+
+Rather than hand-build recipes/components/nodes in every world, the module can
+**seed a whole crafting system into Fabricate** from a JSON file it ships.
+Fabricate's "Export System" produces an envelope —
+`{ fabricateVersion, exportedAt, system, recipes }` — and
+`game.fabricate.importSystemFromFile` reads it back (it accepts a **raw JSON
+string**, so no file picker is needed). The adapter wraps this:
+
+```js
+const api = game.modules.get("automate-fvtt").api.fabricate;
+await api.seedSystem("modules/automate-fvtt/data/fabricate/keep-economy.json");
+// also: api.exportSystem(id), api.importSystem(jsonOrData, opts),
+//       api.getSystem(id), api.listSystems()
+```
+
+Workflow: build the system once in Fabricate's UI → **Export System** → drop the
+JSON in `data/fabricate/` → list it in `FABRICATE.SEED_SYSTEMS`
+(`scripts/constants.js`). On `ready` the **primary GM** seeds each entry,
+**idempotently** — a system whose id already exists is skipped, so reloads never
+duplicate (`{ overwriteExisting: true }` forces a refresh). See
+`data/fabricate/README.md`.
+
+Two artifacts, two pipelines:
+
+| Content | Ships as |
+|---|---|
+| Essences, components, recipes, **gathering realms/tasks** | the Fabricate system **export JSON** (`importSystemFromFile`) |
+| Resource-**node placements** on a map | a **Scene compendium pack** (node data lives on Scene tiles) |
+
 ## Notes & limits
 
 - **Degrades cleanly:** when Fabricate is absent or its handshake fails, the
