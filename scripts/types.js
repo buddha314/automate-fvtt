@@ -65,6 +65,22 @@
  *                                            `keep` deposits directly (adjacency
  *                                            optional), `port` holds for routing.
  *                                            Count rules always deliver to the Keep.
+ * @property {?FabricateSpec} fabricate   When set, the rule delegates its effect to
+ *                                            Fabricate (harvest a node / run a recipe)
+ *                                            instead of moving the numeric ledger;
+ *                                            `inputs`/`outputs` are empty (Phase 4).
+ */
+
+/**
+ * Delegates a {@link Rule}'s effect to Fabricate. See
+ * {@link module:fabricate/fabricate-rules}.
+ * @typedef {Object} FabricateSpec
+ * @property {"harvest"|"craft"} op
+ * @property {?string} nodeId             Resource node id (harvest).
+ * @property {?string} recipeId           Recipe id (craft).
+ * @property {?string} ingredientSetId    Optional Fabricate ingredient-set selector (craft).
+ * @property {?Object<string, number>} ingredients  resourceKey → amount per craft,
+ *                                            used only to cap craft count by stock on hand.
  */
 
 /**
