@@ -44,6 +44,19 @@ export const HOOKS = Object.freeze({
   KEEP_UPDATED: `${MODULE_ID}.keepUpdated`,
   /** Fired with ({worldTime, dt, prevTime}) on every world-time advance. */
   TICK: `${MODULE_ID}.tick`,
+  /** Fired with (keep) whenever a Keep's membership roster changes (Change A). */
+  MEMBERSHIP_CHANGED: `${MODULE_ID}.membershipChanged`,
+  /**
+   * Fired with ({keep, member, benefit, actionId}) when a member invokes an
+   * `action` benefit. Content listens and executes the system-specific effect;
+   * the engine itself performs nothing (Change A).
+   */
+  BENEFIT_INVOKED: `${MODULE_ID}.benefitInvoked`,
+  /**
+   * Fired with ({keep, member, benefit}) when an `interactive` benefit becomes
+   * live and is awaiting GM application. The GM-prompt UI listens for this.
+   */
+  BENEFIT_PENDING: `${MODULE_ID}.benefitPending`,
 });
 
 /**

@@ -11,6 +11,7 @@
 
 import { KEEP_TYPE, KEEP_ICON, HOOKS } from "./constants.js";
 import { log } from "./logger.js";
+import { getMemberModifier as resolveMemberModifier, getMemberCapabilities } from "./benefits/benefit-engine.js";
 
 /** @returns {Actor[]} all Keep actors in the world. */
 export function listKeeps() {
@@ -137,6 +138,109 @@ export async function collectPorts(keepOrId, bufferKey = null) {
   return keep;
 }
 
+/* --------------------------- membership (Change A) --------------------------- */
+
+/**
+ * Find a member entry on a Keep by the referenced Actor's UUID.
+ * @param {Actor} keep
+ * @param {string} actorUuid
+ * @returns {{actorUuid: string, role: string, joinedAt: ?number}|undefined}
+ */
+function findMember(keep, actorUuid) {
+  return (keep.system?.members ?? []).find((m) => m.actorUuid === actorUuid);
+}
+
+/**
+ * Add an existing Actor to a Keep's roster with a role. Does not create an Actor;
+ * re-adding an already-present member is a no-op. Roles are opaque strings.
+ * @param {Actor|string} keepOrId
+ * @param {string} actorUuid  UUID of an existing PC/NPC Actor
+ * @param {string} [role="member"]
+ * @returns {Promise<Actor>}
+ */
+export async function addMember(keepOrId, actorUuid, role = "member") {
+  const keep = resolveKeep(keepOrId);
+  if (!actorUuid) throw new Error("[automate-fvtt] addMember needs an actorUuid");
+  if (findMember(keep, actorUuid)) return keep; // idempotent
+  const members = [...(keep.system?.members ?? []), { actorUuid, role, joinedAt: game.time?.worldTime ?? null }];
+  await keep.update({ "system.members": members });
+  return keep;
+}
+
+/**
+ * Remove a member from a Keep's roster. The referenced Actor is left untouched.
+ * @param {Actor|string} keepOrId
+ * @param {string} actorUuid
+ * @returns {Promise<Actor>}
+ */
+export async function removeMember(keepOrId, actorUuid) {
+  const keep = resolveKeep(keepOrId);
+  const members = (keep.system?.members ?? []).filter((m) => m.actorUuid !== actorUuid);
+  await keep.update({ "system.members": members });
+  return keep;
+}
+
+/**
+ * Change a member's role.
+ * @param {Actor|string} keepOrId
+ * @param {string} actorUuid
+ * @param {string} role
+ * @returns {Promise<Actor>}
+ */
+export async function setMemberRole(keepOrId, actorUuid, role) {
+  const keep = resolveKeep(keepOrId);
+  const members = (keep.system?.members ?? []).map((m) =>
+    m.actorUuid === actorUuid ? { ...m, role } : m
+  );
+  await keep.update({ "system.members": members });
+  return keep;
+}
+
+/**
+ * List a Keep's members.
+ * @param {Actor|string} keepOrId
+ * @returns {{actorUuid: string, role: string, joinedAt: ?number}[]}
+ */
+export function listMembers(keepOrId) {
+  return [...(resolveKeep(keepOrId).system?.members ?? [])];
+}
+
+/**
+ * Resolve one of a member's live benefit modifiers (e.g. a merchant price
+ * multiplier). Delegates to the benefit engine; only *applied* benefits count.
+ * @param {Actor|string} keepOrId
+ * @param {string} actorUuid
+ * @param {string} key
+ * @returns {number}
+ */
+export function getMemberModifier(keepOrId, actorUuid, key) {
+  const keep = resolveKeep(keepOrId);
+  const member = findMember(keep, actorUuid);
+  if (!member) return 0;
+  return resolveMemberModifier(keep, member, key);
+}
+
+/**
+ * Withdraw resources from a Keep's stockpile on a member's behalf — enforced by
+ * the `stockpile.withdraw` capability benefit (the one capability the engine owns
+ * the resource for). Throws if the member lacks the capability.
+ * @param {Actor|string} keepOrId
+ * @param {string} actorUuid
+ * @param {string} resource
+ * @param {number} qty  positive amount to withdraw
+ * @returns {Promise<Actor>}
+ */
+export async function memberWithdraw(keepOrId, actorUuid, resource, qty) {
+  const keep = resolveKeep(keepOrId);
+  const member = findMember(keep, actorUuid);
+  if (!member) throw new Error(`[automate-fvtt] not a member of this Keep: ${actorUuid}`);
+  const caps = getMemberCapabilities(keep, member);
+  if (!caps["stockpile.withdraw"]) {
+    throw new Error(`[automate-fvtt] member ${actorUuid} lacks stockpile.withdraw on ${keep.id}`);
+  }
+  return adjustResource(keep, resource, -Math.abs(Number(qty) || 0));
+}
+
 /**
  * @param {Actor|string} keepOrId
  * @returns {Actor}
@@ -174,4 +278,13 @@ export const keepsApi = {
   removeResource,
   setCount,
   collectPorts,
+  // Membership + benefits (Change A).
+  members: {
+    add: addMember,
+    remove: removeMember,
+    setRole: setMemberRole,
+    list: listMembers,
+  },
+  getMemberModifier,
+  memberWithdraw,
 };
