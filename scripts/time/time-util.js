@@ -20,8 +20,13 @@ export const SECONDS = Object.freeze({
 export const STEP_UNITS = Object.freeze(["hour", "day", "week", "month", "year"]);
 
 /**
+ * A canonical duration unit — one of the keys of {@link SECONDS}.
+ * @typedef {("hour"|"day"|"week"|"month"|"year")} TimeUnit
+ */
+
+/**
  * Convert a unit + amount to seconds.
- * @param {keyof SECONDS} unit
+ * @param {TimeUnit} unit
  * @param {number} amount
  * @returns {number} seconds (0 if unit is unknown)
  */

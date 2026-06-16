@@ -19,11 +19,20 @@ export class FabricateAdapter {
   #available = false;
   /** @type {string|null} */
   #version = null;
-  /** @type {object|null} Fabricate's public API object (`game.fabricate.api`). */
+  /**
+   * Fabricate's public API object (`game.fabricate.api`).
+   * @type {object|null}
+   */
   #api = null;
-  /** @type {object|null} Fabricate's top-level namespace (`game.fabricate`). */
+  /**
+   * Fabricate's top-level namespace (`game.fabricate`).
+   * @type {object|null}
+   */
   #ns = null;
-  /** @type {string|null} Human-readable reason the adapter is unavailable. */
+  /**
+   * Human-readable reason the adapter is unavailable.
+   * @type {string|null}
+   */
   #unavailableReason = null;
 
   /** @returns {boolean} true when Fabricate is present, active, and its API was acquired. */
@@ -375,6 +384,15 @@ export class FabricateAdapter {
   }
 
   /**
+   * The outcome of a {@link seedSystem} call.
+   * @typedef {Object} SeedSystemResult
+   * @property {boolean} seeded  whether a system was imported on this call
+   * @property {string} [reason]  why seeding was skipped, when `seeded` is false
+   * @property {string} [systemId]  id of the seeded (or already-present) system
+   * @property {object} [result]  raw import result, when available
+   */
+
+  /**
    * Idempotently seed a crafting system from a JSON export the module ships.
    * Fetches `url`, derives the system id from the payload, and — unless the
    * system already exists (and `overwriteExisting` is false) — imports it. Safe
@@ -384,7 +402,7 @@ export class FabricateAdapter {
    *   `modules/automate-fvtt/data/fabricate/keep-economy.json`
    * @param {object} [options]
    * @param {boolean} [options.overwriteExisting=false]
-   * @returns {Promise<{seeded: boolean, reason?: string, systemId?: string, result?: object}>}
+   * @returns {Promise<SeedSystemResult>}
    */
   async seedSystem(url, { overwriteExisting = false } = {}) {
     if (!this.#available) return { seeded: false, reason: "fabricate-unavailable" };
