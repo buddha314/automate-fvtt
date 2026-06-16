@@ -67,11 +67,12 @@ export const FABRICATE = Object.freeze({
   ID: "fabricate",
   /**
    * Known-good Fabricate version this module is developed and tested against.
-   * Fabricate is pre-1.0 (1.0.0-rc line) with a shifting API, so a mismatch is a
-   * warning, not a hard failure — but the seam in fabricate-adapter.js is where
-   * breakage surfaces.
+   * Fabricate is pre-1.0 with a shifting API (it reset its version scheme from
+   * the `1.0.0-rc.x` line back to `0.x` — `0.1.0` as of 2026-06), so a mismatch
+   * is a warning, not a hard failure — but the seam in fabricate-adapter.js is
+   * where breakage surfaces.
    */
-  KNOWN_GOOD_VERSION: "1.0.0-rc.87",
+  KNOWN_GOOD_VERSION: "0.1.0",
   /**
    * Crafting-system export JSONs (Fabricate "Export System" payloads) this module
    * ships and seeds into Fabricate on `ready`, idempotently. Each entry is a path
