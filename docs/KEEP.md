@@ -34,3 +34,12 @@ GMs or Modules may override all resource allocations. Rules can be set to relate
 ## Recruiting
 
 Keep automatically recruit various elements such as Merchants based on their fundamental characteristics or GM overrides. The key variables for automation include the metrics above and recruiting cadence.  This is the restock rate by default.  For instance, Keeps harvest resources, recruit members and restock merchants once / week.
+
+## Keep Tiers & Evolution
+
+Modules and Game Systems can offer a Tiered system for Keeps. For instance
+
+* Keeps may be tranched into hamlet, vilage, shire, town, city, megacity, national or planetary based on certain metrics.
+  * For instance, if only "land area" and "population" are used as metrics. Then a hamlet may be size: "under 3 square kilometers and 500 residents", a "city" may be "Between 20 and 100 square kiometers and between 1,000 and 100,000 residents"
+* Keep benefits will escalate with Tier.
+* We may consider multiple tiers for different metrics in the future. E.g. "city in area but hamlet in population". Keep benefits would then be tied to the Tier. Better law enforcement with higher population but more food in larger areas.
