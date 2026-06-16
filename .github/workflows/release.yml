@@ -1,0 +1,51 @@
+name: Release
+
+# Publish a GitHub Release (tag like v0.1.0) and this builds the Foundry
+# module.json + module.zip and attaches them as the release's assets, which is
+# what the install/update manifest URL resolves to.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stamp version + manifest/download URLs into module.json
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          # `manifest` stays "latest" so Foundry's update check always sees the
+          # newest release; `download` is pinned to THIS tag so a given manifest
+          # always pulls its exact matching zip.
+          MANIFEST="https://github.com/${REPO}/releases/latest/download/module.json"
+          DOWNLOAD="https://github.com/${REPO}/releases/download/${TAG}/module.zip"
+          jq --arg v "$VERSION" --arg m "$MANIFEST" --arg d "$DOWNLOAD" \
+            '.version=$v | .manifest=$m | .download=$d' module.json > module.tmp
+          mv module.tmp module.json
+          echo "Released module.json:"; jq '{id, version, manifest, download}' module.json
+
+      - name: Build module.zip (runtime files only)
+        run: |
+          set -euo pipefail
+          items=""
+          for p in module.json scripts styles lang data templates assets README.md LICENSE; do
+            [ -e "$p" ] && items="$items $p"
+          done
+          echo "zipping:$items"
+          zip -r module.zip $items
+          unzip -l module.zip | tail -5
+
+      - name: Attach assets to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" module.json module.zip --clobber
