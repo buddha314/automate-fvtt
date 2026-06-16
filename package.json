@@ -5,10 +5,13 @@
   "description": "Dev tooling for the Automate FVTT Foundry module. Foundry loads scripts/ directly as ES modules and ignores this file; it exists only so Node's built-in test runner can exercise the pure logic (e.g. the Phase 3 rules core).",
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "docs": "jsdoc -c jsdoc.json || true"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",
-    "@types/node": "^25.9.3"
+    "@types/node": "^25.9.3",
+    "jsdoc": "^4.0.5",
+    "jsdoc-plugin-typescript": "^3.2.1"
   }
 }

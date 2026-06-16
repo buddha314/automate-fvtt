@@ -1,4 +1,7 @@
 
+# JSDoc output
+/jsdoc/
+
 # Playwright
 node_modules/
 /test-results/
