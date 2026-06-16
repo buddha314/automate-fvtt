@@ -1,4 +1,7 @@
 
+# Local-only Claude Code settings
+.claude/settings.local.json
+
 # JSDoc output
 /jsdoc/
 
