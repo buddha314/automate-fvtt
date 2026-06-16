@@ -8,7 +8,8 @@
  */
 
 import { MODULE_ID } from "./../constants.js";
-import { setResource, removeResource } from "./../keep-api.js";
+import { setResource, removeResource, addMember, removeMember } from "./../keep-api.js";
+import { memberBenefitView, approveBenefit, invokeAction } from "./../benefits/benefit-engine.js";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -25,6 +26,10 @@ export class KeepSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     actions: {
       addResource: KeepSheet.#onAddResource,
       removeResource: KeepSheet.#onRemoveResource,
+      addMember: KeepSheet.#onAddMember,
+      removeMember: KeepSheet.#onRemoveMember,
+      invokeBenefit: KeepSheet.#onInvokeBenefit,
+      approveBenefit: KeepSheet.#onApproveBenefit,
     },
   };
 
@@ -43,8 +48,79 @@ export class KeepSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.resources = Object.entries(system.stockpile ?? {})
       .map(([key, qty]) => ({ key, qty }))
       .sort((a, b) => a.key.localeCompare(b.key));
+
+    // Members + their resolved benefits (Change A).
+    context.members = (system.members ?? []).map((m, idx) => {
+      const actor = this.#resolveActor(m.actorUuid);
+      return {
+        idx,
+        actorUuid: m.actorUuid,
+        role: m.role,
+        name: actor?.name ?? m.actorUuid,
+        img: actor?.img,
+        benefits: memberBenefitView(this.document, m),
+      };
+    });
+
     context.editable = this.isEditable;
     return context;
+  }
+
+  /** Resolve an actor UUID for display; null on miss. @returns {Actor|null} */
+  #resolveActor(uuid) {
+    try {
+      return fromUuidSync?.(uuid) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Add a world Actor (PC/NPC, not a Keep) to the roster, prompting for actor and role.
+   * @this {KeepSheet}
+   */
+  static async #onAddMember() {
+    const candidates = (game.actors ?? []).filter((a) => a.type !== `${MODULE_ID}.keep`);
+    if (!candidates.length) {
+      ui.notifications?.warn(game.i18n.localize("AUTOMATE_FVTT.Keep.NoActors"));
+      return;
+    }
+    const options = candidates.map((a) => `<option value="${a.uuid}">${a.name}</option>`).join("");
+    const result = await foundry.applications.api.DialogV2.prompt({
+      window: { title: game.i18n.localize("AUTOMATE_FVTT.Keep.AddMemberTitle") },
+      content:
+        `<div class="keep-sheet__field"><label>${game.i18n.localize("AUTOMATE_FVTT.Keep.MemberActor")}</label>` +
+        `<select name="actorUuid" style="width:100%">${options}</select></div>` +
+        `<div class="keep-sheet__field"><label>${game.i18n.localize("AUTOMATE_FVTT.Keep.MemberRole")}</label>` +
+        `<input type="text" name="role" value="member" style="width:100%" /></div>`,
+      ok: {
+        label: game.i18n.localize("AUTOMATE_FVTT.Keep.Add"),
+        callback: (_e, button) => ({
+          actorUuid: button.form.elements.actorUuid.value,
+          role: button.form.elements.role.value.trim() || "member",
+        }),
+      },
+      rejectClose: false,
+    });
+    if (result?.actorUuid) await addMember(this.document, result.actorUuid, result.role);
+  }
+
+  /** Remove the member named on the clicked control's `data-actor-uuid`. @this {KeepSheet} */
+  static async #onRemoveMember(_event, target) {
+    const uuid = target.dataset.actorUuid;
+    if (uuid) await removeMember(this.document, uuid);
+  }
+
+  /** Invoke an action benefit (`data-actor-uuid`, `data-benefit`). @this {KeepSheet} */
+  static async #onInvokeBenefit(_event, target) {
+    const { actorUuid, benefit } = target.dataset;
+    if (actorUuid && benefit) invokeAction(this.document, actorUuid, benefit);
+  }
+
+  /** Approve a pending interactive benefit, then re-render. @this {KeepSheet} */
+  static async #onApproveBenefit(_event, target) {
+    const { actorUuid, benefit } = target.dataset;
+    if (actorUuid && benefit) await approveBenefit(this.document, actorUuid, benefit);
   }
 
   /**

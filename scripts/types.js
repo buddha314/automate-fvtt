@@ -29,6 +29,22 @@
  * @property {Object<string, Object<string, number>>} buffers  Port output holds:
  *                                            bufferKey → resource → qty, for
  *                                            producers using `port` delivery.
+ * @property {number} tier                Current numeric tier (read by benefit
+ *                                            eligibility; computed by a separate change).
+ * @property {Member[]} members           Membership roster (Change A).
+ * @property {string[]} boundBenefitIds   Lightweight mirror of benefit ids bound
+ *                                            to this Keep; authoritative store is
+ *                                            `benefits/benefit-store.js`.
+ */
+
+/**
+ * A member of a {@link Keep}: a reference to an existing PC/NPC Actor plus an
+ * opaque, content-defined role. Adding/removing a member never creates or deletes
+ * the referenced Actor (Change A).
+ * @typedef {Object} Member
+ * @property {string} actorUuid           UUID of the referenced Actor.
+ * @property {string} role                Opaque role string (gates benefit eligibility).
+ * @property {?number} joinedAt           World-time the member joined, if recorded.
  */
 
 /**

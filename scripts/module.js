@@ -25,6 +25,10 @@ import { registerRulesEngine, applyTick, configureFabricate } from "./rules/rule
 import { listRules, registerRule, unregisterRule, computeTickPlan, setDelivery, DELIVERY } from "./rules/rules.js";
 import { createComponentMap } from "./fabricate/component-map.js";
 import { FAB_OP, makeFabricateRule } from "./fabricate/fabricate-rules.js";
+import { registerBenefitEngine, registerBenefitPrompt, approveBenefit, invokeAction } from "./benefits/benefit-engine.js";
+import { registerDefinition, unregisterDefinition, listDefinitions, bind, unbind } from "./benefits/benefit-store.js";
+import { registerGenericCookbook, EXAMPLE_ROLES } from "./benefits/cookbook.js";
+import { importBenefits, importPf2eKingmakerStructures } from "./benefits/importers.js";
 import "./types.js"; // typedefs only
 
 /**
@@ -78,6 +82,26 @@ const state = {
     setComponentMap,
     FAB_OP,
   },
+  /**
+   * Membership benefits (Change A). Content registers definitions on
+   * `automate-fvtt.ready`, binds them to Keeps, and the engine resolves them
+   * event-driven. See `benefits/*`.
+   */
+  benefits: {
+    register: registerDefinition,
+    unregister: unregisterDefinition,
+    list: listDefinitions,
+    bind,
+    unbind,
+    /** Approve a live interactive benefit for a member, then re-resolve. */
+    approve: (keepId, actorUuid, benefitId) => approveBenefit(keepsApi.get(keepId), actorUuid, benefitId),
+    /** Invoke an action benefit (emits `automate-fvtt.benefitInvoked`). */
+    invoke: (keepId, actorUuid, benefitId) => invokeAction(keepsApi.get(keepId), actorUuid, benefitId),
+    /** Example role vocabularies (Decision 6) — opaque strings, adopt or replace. */
+    exampleRoles: EXAMPLE_ROLES,
+    /** Importer seam: convert license-permissive content into defs for GM review. */
+    import: { custom: importBenefits, pf2eKingmakerStructures: importPf2eKingmakerStructures },
+  },
 };
 
 Hooks.once("init", () => {
@@ -92,6 +116,12 @@ Hooks.once("init", () => {
     label: "AUTOMATE_FVTT.Keep.SheetLabel",
   });
   registerKeepHooks();
+
+  // Membership benefits (Change A): event-driven resolver, sibling of the tick
+  // engine. Re-resolves on membership/tier/scene change and the world-time
+  // landing point; never participates in the tick.
+  registerBenefitEngine();
+  registerBenefitPrompt(); // GM chat-card prompt for interactive benefits
 
   // World-time tick dispatcher (Phase 2). A demo subscriber proves the fan-out.
   registerTickDispatcher();
@@ -131,6 +161,10 @@ Hooks.once("ready", () => {
     adapter: state.fabricate,
     componentMap: createComponentMap(componentMapPairs),
   });
+
+  // Seed the generic benefit cookbook as a reference/fallback (Change A, 6.1).
+  // Content modules register their own on the same hook; idempotent by id.
+  registerGenericCookbook();
 
   if (ok) log.info("Automate FVTT ready.");
   else if (game.user?.isGM) {

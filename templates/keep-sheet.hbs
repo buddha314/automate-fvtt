@@ -53,5 +53,61 @@
       {{/if}}
     </fieldset>
 
+    <fieldset class="keep-sheet__members">
+      <legend>{{localize "AUTOMATE_FVTT.Keep.Members"}}</legend>
+      {{#if members.length}}
+        {{#each members as |m|}}
+          <div class="keep-sheet__member" data-actor-uuid="{{m.actorUuid}}">
+            <header class="keep-sheet__member-head">
+              {{#if m.img}}<img class="keep-sheet__member-img" src="{{m.img}}" alt="{{m.name}}" />{{/if}}
+              <span class="keep-sheet__member-name">{{m.name}}</span>
+              {{#if ../editable}}
+                <input class="keep-sheet__member-role" type="text" name="system.members.{{m.idx}}.role"
+                       value="{{m.role}}" />
+                <button type="button" class="keep-sheet__remove" data-action="removeMember"
+                        data-actor-uuid="{{m.actorUuid}}" data-tooltip="{{localize "AUTOMATE_FVTT.Keep.RemoveMember"}}">
+                  <i class="fa-solid fa-user-minus"></i>
+                </button>
+              {{else}}
+                <span class="keep-sheet__member-role-text">{{m.role}}</span>
+              {{/if}}
+            </header>
+            {{#if m.benefits.length}}
+              <ul class="keep-sheet__benefits">
+                {{#each m.benefits as |b|}}
+                  <li class="keep-sheet__benefit keep-sheet__benefit--{{b.status}}">
+                    <span class="keep-sheet__benefit-name">{{b.name}}</span>
+                    <span class="keep-sheet__benefit-tag">{{b.primitive}} · {{b.status}}</span>
+                    {{#if b.isAction}}
+                      <button type="button" data-action="invokeBenefit"
+                              data-actor-uuid="{{m.actorUuid}}" data-benefit="{{b.id}}">
+                        {{localize "AUTOMATE_FVTT.Keep.Invoke"}}
+                      </button>
+                    {{/if}}
+                    {{#if b.isPending}}
+                      <button type="button" data-action="approveBenefit"
+                              data-actor-uuid="{{m.actorUuid}}" data-benefit="{{b.id}}">
+                        {{localize "AUTOMATE_FVTT.Keep.Apply"}}
+                      </button>
+                    {{/if}}
+                  </li>
+                {{/each}}
+              </ul>
+            {{else}}
+              <p class="keep-sheet__empty">{{localize "AUTOMATE_FVTT.Keep.NoBenefits"}}</p>
+            {{/if}}
+          </div>
+        {{/each}}
+      {{else}}
+        <p class="keep-sheet__empty">{{localize "AUTOMATE_FVTT.Keep.NoMembers"}}</p>
+      {{/if}}
+
+      {{#if editable}}
+        <button type="button" class="keep-sheet__add" data-action="addMember">
+          <i class="fa-solid fa-user-plus"></i> {{localize "AUTOMATE_FVTT.Keep.AddMember"}}
+        </button>
+      {{/if}}
+    </fieldset>
+
   </div>
 </div>
