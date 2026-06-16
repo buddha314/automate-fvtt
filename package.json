@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "docs": "jsdoc -c jsdoc.json || true"
+    "docs": "jsdoc -c jsdoc.json"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",

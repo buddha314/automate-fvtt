@@ -112,12 +112,18 @@ export function listRules() {
 }
 
 /**
+ * A Keep's `system` data, as the rules core reads it.
+ * @typedef {Object} KeepSystem
+ * @property {Object<string, number>} [counts]  count-binding scalars (henchmen, garden, …)
+ */
+
+/**
  * How many *units* of a rule a Keep currently runs.
  * - `count`  → the Keep config scalar named by `rule.countKey` (henchmen, garden).
  * - `asset`  → `rule.assetUnits` (Phase 3 stand-in; Phase 6 replaces this with
  *   the number of placed assets bound to the Keep).
  * A unit count of 0 makes the rule a no-op for that Keep.
- * @param {{counts?: Object<string, number>}} keepSystem  the Keep's `system` data
+ * @param {KeepSystem} keepSystem  the Keep's `system` data
  * @param {Rule} rule
  * @returns {number} non-negative unit count
  */
@@ -175,6 +181,31 @@ function sortRules(rules) {
 }
 
 /**
+ * One rule's contribution to a tick.
+ * @typedef {Object} TickApplication
+ * @property {string} ruleId
+ * @property {number} units
+ * @property {number} intervals
+ * @property {DELIVERY} delivery
+ */
+
+/**
+ * Options for {@link computeTickPlan}.
+ * @typedef {Object} TickOptions
+ * @property {DELIVERY} [defaultDelivery]  default delivery for asset rules that
+ *   don't set their own (the world setting)
+ */
+
+/**
+ * The result of {@link computeTickPlan}.
+ * @typedef {Object} TickPlan
+ * @property {Object<string, number>} deltas  net stockpile change per resource
+ * @property {Object<string, Object<string, number>>} ports  bufferKey → resource → amount held at a port
+ * @property {TickApplication[]} applications  what actually fired
+ * @property {Object<string, number>} result  the resulting stockpile (working copy)
+ */
+
+/**
  * Compute the stockpile changes a set of rules makes to one Keep over a world-time
  * span — the heart of the engine, and pure so it is fully unit-testable.
  *
@@ -195,16 +226,14 @@ function sortRules(rules) {
  * stockpile.
  *
  * @param {Object<string, number>} stockpile  current resource → qty (not mutated)
- * @param {{counts?: Object<string, number>}} keepSystem  the Keep's `system` data
+ * @param {KeepSystem} keepSystem  the Keep's `system` data
  * @param {Rule[]} rules
  * @param {number} prevTime   previous world time, seconds
  * @param {number} worldTime  new world time, seconds
- * @param {{defaultDelivery?: DELIVERY}} [opts]  default delivery for asset rules
- *   that don't set their own (the world setting)
- * @returns {{deltas: Object<string, number>, ports: Object<string, Object<string, number>>, applications: {ruleId: string, units: number, intervals: number, delivery: DELIVERY}[], result: Object<string, number>}}
- *   `deltas` = net stockpile change per resource; `ports` = bufferKey → resource →
- *   amount held at a port; `applications` = what actually fired; `result` = the
- *   resulting stockpile (working copy).
+ * @param {TickOptions} [opts]  default delivery for asset rules that don't set their own
+ * @returns {TickPlan}  `deltas` = net stockpile change per resource; `ports` =
+ *   bufferKey → resource → amount held at a port; `applications` = what actually
+ *   fired; `result` = the resulting stockpile (working copy).
  */
 export function computeTickPlan(stockpile, keepSystem, rules, prevTime, worldTime, opts = {}) {
   const defaultDelivery = opts.defaultDelivery ?? DELIVERY.KEEP;
