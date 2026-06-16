@@ -12,6 +12,31 @@ The Merchant shop has a flexible stock system. It may be set by the GM or random
 
 The GM can assign a list of items this merchant may carry. The GM may set a randomization routine, for instance Mulitnomial inversely proportional to item value. As a Merchant's capacity increases, they will increase their probability of more rare items.  Of course, this can be overridden by GM or Module fiat.
 
+The Module may provide a JSON or other file to automatically load Merchant Rules. This should include re-stocking rules. 
+
+### Stocking A Merchant
+
+Example: A Merchant has a capacity of 5 items, the Module decides those items may be picked at random with replacment from a list of 10 possible items. The costs are
+
+```[1, 1, 1, 1, 1, 2, 2, 4, 4, 10]`` We could weight the probability of picking by the inverse of cost. One example would be 
+
+```
+# Raw Costs
+v = np.array([1,1,1,1,1,2,2,3,4,10])
+v
+# Take 1 - 1/value
+n = 1 - v / v.sum()
+# Normalize to a probabiltiy
+p = n / n.sum()
+# Print results
+p = array([0.03846154, 0.03846154, 0.03846154, 0.03846154, 0.03846154,
+       0.01923077, 0.01923077, 0.01282051, 0.00961538, 0.00384615])
+# Confirm sum
+p.sum() = 1
+```
+
+This makes the choice of each item inversely proportional to its costs. 
+
 ## Merchant System
 
-A merchant is recruited to a Keep using 
+A merchant is recruited to a Keep using metrics provided by the Module or Game System.
