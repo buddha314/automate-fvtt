@@ -66,6 +66,19 @@ export const HOOKS = Object.freeze({
   KEEP_UPDATED: `${MODULE_ID}.keepUpdated`,
   /** Fired with ({worldTime, dt, prevTime}) on every world-time advance. */
   TICK: `${MODULE_ID}.tick`,
+  /** Fired with (keep) whenever a Keep's membership roster changes (Change A). */
+  MEMBERSHIP_CHANGED: `${MODULE_ID}.membershipChanged`,
+  /**
+   * Fired with ({keep, member, benefit, actionId}) when a member invokes an
+   * `action` benefit. Content listens and executes the system-specific effect;
+   * the engine itself performs nothing (Change A).
+   */
+  BENEFIT_INVOKED: `${MODULE_ID}.benefitInvoked`,
+  /**
+   * Fired with ({keep, member, benefit}) when an `interactive` benefit becomes
+   * live and is awaiting GM application. The GM-prompt UI listens for this.
+   */
+  BENEFIT_PENDING: `${MODULE_ID}.benefitPending`,
 });
 
 /**
@@ -76,11 +89,12 @@ export const FABRICATE = Object.freeze({
   ID: "fabricate",
   /**
    * Known-good Fabricate version this module is developed and tested against.
-   * Fabricate is pre-1.0 (1.0.0-rc line) with a shifting API, so a mismatch is a
-   * warning, not a hard failure — but the seam in fabricate-adapter.js is where
-   * breakage surfaces.
+   * Fabricate is pre-1.0 with a shifting API (it reset its version scheme from
+   * the `1.0.0-rc.x` line back to `0.x` — `0.1.0` as of 2026-06), so a mismatch
+   * is a warning, not a hard failure — but the seam in fabricate-adapter.js is
+   * where breakage surfaces.
    */
-  KNOWN_GOOD_VERSION: "1.0.0-rc.87",
+  KNOWN_GOOD_VERSION: "0.1.0",
   /**
    * Crafting-system export JSONs (Fabricate "Export System" payloads) this module
    * ships and seeds into Fabricate on `ready`, idempotently. Each entry is a path

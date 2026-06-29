@@ -7,14 +7,24 @@
  * `api.keeps.open(keepOrId)` (and the Actors-directory context menu) that
  * reads/writes `flags["automate-fvtt"].keep` directly.
  *
- * Lists and edits the count-based config scalars (henchmen, garden) and the
- * dynamic resource stockpile. Form changes persist on change; add/remove resource
- * use named actions.
+ * Lists and edits the count-based config scalars (henchmen, garden), the dynamic
+ * resource stockpile, and the membership roster with each member's resolved
+ * benefits (Change A). Form changes persist on change; add/remove resource,
+ * add/remove member, and invoke/approve benefit use named actions.
  * @module apps/keep-sheet
  */
 
 import { MODULE_ID, KEEP_DATA_PATH } from "./../constants.js";
-import { getKeepData, getKeep, isKeepActor, setResource, removeResource } from "./../keep-api.js";
+import {
+  getKeepData,
+  getKeep,
+  isKeepActor,
+  setResource,
+  removeResource,
+  addMember,
+  removeMember,
+} from "./../keep-api.js";
+import { memberBenefitView, approveBenefit, invokeAction } from "./../benefits/benefit-engine.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -43,6 +53,10 @@ export class KeepApp extends HandlebarsApplicationMixin(ApplicationV2) {
     actions: {
       addResource: KeepApp.#onAddResource,
       removeResource: KeepApp.#onRemoveResource,
+      addMember: KeepApp.#onAddMember,
+      removeMember: KeepApp.#onRemoveMember,
+      invokeBenefit: KeepApp.#onInvokeBenefit,
+      approveBenefit: KeepApp.#onApproveBenefit,
     },
   };
 
@@ -86,8 +100,31 @@ export class KeepApp extends HandlebarsApplicationMixin(ApplicationV2) {
     context.resources = Object.entries(data.stockpile ?? {})
       .map(([key, qty]) => ({ key, qty }))
       .sort((a, b) => a.key.localeCompare(b.key));
+
+    // Members + their resolved benefits (Change A).
+    context.members = (data.members ?? []).map((m, idx) => {
+      const actor = this.#resolveActor(m.actorUuid);
+      return {
+        idx,
+        actorUuid: m.actorUuid,
+        role: m.role,
+        name: actor?.name ?? m.actorUuid,
+        img: actor?.img,
+        benefits: memberBenefitView(this.keep, m),
+      };
+    });
+
     context.editable = this.keep.isOwner;
     return context;
+  }
+
+  /** Resolve an actor UUID for display; null on miss. @returns {Actor|null} */
+  #resolveActor(uuid) {
+    try {
+      return fromUuidSync?.(uuid) ?? null;
+    } catch {
+      return null;
+    }
   }
 
   /** Re-render live when the Keep changes underneath us (economy tick, API). @override */
@@ -166,5 +203,53 @@ export class KeepApp extends HandlebarsApplicationMixin(ApplicationV2) {
       await removeResource(this.keep, resource);
       await this.render();
     }
+  }
+
+  /**
+   * Add a world Actor (PC/NPC, not a Keep) to the roster, prompting for actor and role.
+   * @this {KeepApp}
+   */
+  static async #onAddMember() {
+    const candidates = (game.actors ?? []).filter((a) => !isKeepActor(a));
+    if (!candidates.length) {
+      ui.notifications?.warn(game.i18n.localize("AUTOMATE_FVTT.Keep.NoActors"));
+      return;
+    }
+    const options = candidates.map((a) => `<option value="${a.uuid}">${a.name}</option>`).join("");
+    const result = await foundry.applications.api.DialogV2.prompt({
+      window: { title: game.i18n.localize("AUTOMATE_FVTT.Keep.AddMemberTitle") },
+      content:
+        `<div class="keep-sheet__field"><label>${game.i18n.localize("AUTOMATE_FVTT.Keep.MemberActor")}</label>` +
+        `<select name="actorUuid" style="width:100%">${options}</select></div>` +
+        `<div class="keep-sheet__field"><label>${game.i18n.localize("AUTOMATE_FVTT.Keep.MemberRole")}</label>` +
+        `<input type="text" name="role" value="member" style="width:100%" /></div>`,
+      ok: {
+        label: game.i18n.localize("AUTOMATE_FVTT.Keep.Add"),
+        callback: (_e, button) => ({
+          actorUuid: button.form.elements.actorUuid.value,
+          role: button.form.elements.role.value.trim() || "member",
+        }),
+      },
+      rejectClose: false,
+    });
+    if (result?.actorUuid) await addMember(this.keep, result.actorUuid, result.role);
+  }
+
+  /** Remove the member named on the clicked control's `data-actor-uuid`. @this {KeepApp} */
+  static async #onRemoveMember(_event, target) {
+    const uuid = target.dataset.actorUuid;
+    if (uuid) await removeMember(this.keep, uuid);
+  }
+
+  /** Invoke an action benefit (`data-actor-uuid`, `data-benefit`). @this {KeepApp} */
+  static async #onInvokeBenefit(_event, target) {
+    const { actorUuid, benefit } = target.dataset;
+    if (actorUuid && benefit) invokeAction(this.keep, actorUuid, benefit);
+  }
+
+  /** Approve a pending interactive benefit, then re-render. @this {KeepApp} */
+  static async #onApproveBenefit(_event, target) {
+    const { actorUuid, benefit } = target.dataset;
+    if (actorUuid && benefit) await approveBenefit(this.keep, actorUuid, benefit);
   }
 }

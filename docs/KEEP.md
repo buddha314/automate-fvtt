@@ -48,3 +48,61 @@ Modules and Game Systems can offer a Tiered system for Keeps. For instance
   * For instance, if only "land area" and "population" are used as metrics. Then a hamlet may be size: "under 3 square kilometers and 500 residents", a "city" may be "Between 20 and 100 square kiometers and between 1,000 and 100,000 residents"
 * Keep benefits will escalate with Tier.
 * We may consider multiple tiers for different metrics in the future. E.g. "city in area but hamlet in population". Keep benefits would then be tied to the Tier. Better law enforcement with higher population but more food in larger areas.
+
+## Membership & Benefits API (Change A)
+
+A Keep has **members** (references to existing PC/NPC Actors plus an opaque,
+content-defined `role`) who derive **benefits** from membership. The engine is
+system-agnostic: it never knows what a "long rest" is — content registers benefit
+definitions, the engine resolves which are *live* per member (role / tier /
+condition gating) and expresses each through one of four primitives:
+
+| Primitive | What it does | Who reads it |
+|-----------|--------------|--------------|
+| `effect` | applies a content-supplied Active Effect to the member's actor, untouched | the game system |
+| `modifier` | a named scalar queried via the API (price/rest multipliers, bonuses) | adapters / content |
+| `capability` | a permission/quota (stockpile withdrawal, storage, voting) | the engine (enforces where it owns the resource) |
+| `action` | an invokable benefit; the engine emits an event, content executes it | content |
+
+Benefits are **event-driven** (re-resolve on membership / tier / token-scene
+change and at a world-time landing point) — a sibling of the tick rules engine, so
+they never block a clock fast-forward. Each benefit resolves `auto` or
+`interactive`; **`interactive` is the default** (a GM applies it, surfaced via a
+whispered chat-card prompt), with deterministic benefits opting into `auto`.
+Same-key `modifier` contributions combine **highest-wins by default** (content may
+override per key). Benefit definitions and per-Keep bindings live in a **side
+module** (`scripts/benefits/benefit-store.js`), not on the Keep actor.
+
+```js
+const api = game.modules.get("automate-fvtt").api;
+
+// Membership (references existing Actors; never creates/deletes them).
+await api.keeps.members.add(keepId, actor.uuid, "ruler");
+api.keeps.members.list(keepId);
+await api.keeps.members.setRole(keepId, actor.uuid, "counselor");
+
+// Benefit definitions (content registers on the `automate-fvtt.ready` hook),
+// then bind them to a Keep.
+api.benefits.register({
+  id: "tavern.gather-info",
+  primitive: "modifier",
+  payload: { key: "pf2e.gather-information.itemBonus", value: 1 },
+  condition: "while-present",
+  mode: "auto",
+});
+api.benefits.bind(keepId, "tavern.gather-info");
+
+// Queries + enforced actions.
+api.keeps.getMemberModifier(keepId, actor.uuid, "pf2e.gather-information.itemBonus");
+await api.keeps.memberWithdraw(keepId, actor.uuid, "rations", 3); // needs the stockpile.withdraw capability
+api.benefits.invoke(keepId, actor.uuid, "generic.summon.guard"); // emits automate-fvtt.benefitInvoked
+await api.benefits.approve(keepId, actor.uuid, "some.interactive.benefit");
+
+// Cookbook + importers.
+api.benefits.exampleRoles;                              // example role vocabularies
+api.benefits.import.pf2eKingmakerStructures(structures); // → defs for GM review (not auto-registered)
+```
+
+A small generic cookbook (rest, storage, voting, stockpile access, summon-guard)
+ships with the engine as a reference/fallback; system-specific cookbooks live in
+content modules.
