@@ -13,7 +13,13 @@
 
 import { FABRICATE } from "./constants.js";
 import { log } from "./logger.js";
-import { scanComponentInventory } from "./fabricate/component-map.js";
+import {
+  scanComponentInventory,
+  buildComponentSourceIndex,
+  buildComponentNameIndex,
+  matchComponentId,
+  itemQuantity,
+} from "./fabricate/component-map.js";
 
 export class FabricateAdapter {
   /** @type {boolean} */
@@ -164,6 +170,48 @@ export class FabricateAdapter {
       log.warn(`Fabricate readInventory failed: ${err?.message ?? err}`);
       return {};
     }
+  }
+
+  /**
+   * Remove up to `units` of a component's items from an actor — so a stockpile cap
+   * on a Fabricate-managed resource actually sticks (a numeric clamp alone is undone
+   * by the next inventory projection). Decrements stacks and deletes emptied ones,
+   * matching items by the same source/name rule as {@link readInventory}.
+   * @param {Actor} actor
+   * @param {string} componentId
+   * @param {number} units
+   * @returns {Promise<number>} units actually removed
+   */
+  async removeComponentUnits(actor, componentId, units) {
+    const want = Math.floor(Number(units) || 0);
+    if (!this.#available || !actor || !componentId || want <= 0) return 0;
+    const systems = this.listSystems();
+    const bySource = buildComponentSourceIndex(systems);
+    const byName = buildComponentNameIndex(systems);
+    let remaining = want;
+    const toDelete = [];
+    const toUpdate = [];
+    for (const item of actor.items ?? []) {
+      if (remaining <= 0) break;
+      if (matchComponentId(item, bySource, byName) !== componentId) continue;
+      const q = itemQuantity(item);
+      if (q <= remaining) {
+        toDelete.push(item.id);
+        remaining -= q;
+      } else {
+        const nq = q - remaining;
+        remaining = 0;
+        const nested = item?.system?.quantity != null && typeof item.system.quantity === "object";
+        toUpdate.push(nested ? { _id: item.id, "system.quantity.value": nq } : { _id: item.id, "system.quantity": nq });
+      }
+    }
+    try {
+      if (toUpdate.length) await actor.updateEmbeddedDocuments("Item", toUpdate);
+      if (toDelete.length) await actor.deleteEmbeddedDocuments("Item", toDelete);
+    } catch (err) {
+      log.warn(`Fabricate removeComponentUnits failed: ${err?.message ?? err}`);
+    }
+    return want - remaining;
   }
 
   /**
