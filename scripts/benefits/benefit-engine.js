@@ -14,7 +14,7 @@
  * @module benefits/benefit-engine
  */
 
-import { KEEP_TYPE, HOOKS, MODULE_ID } from "../constants.js";
+import { KEEP_FLAG, KEEP_DATA_PATH, HOOKS, MODULE_ID } from "../constants.js";
 import { log } from "../logger.js";
 import {
   PRIMITIVE,
@@ -30,6 +30,22 @@ import { definitionsForKeep } from "./benefit-store.js";
 const FLAG_APPLIED = "benefitsApplied"; // flags.<MODULE_ID>.benefitsApplied[keepId] = { effectIds, approved }
 
 /**
+ * Read a Keep's ledger flag (Keeps are core-type actors carrying their data under
+ * a module flag, not a sub-type — see constants.KEEP_FLAG). Local copies of the
+ * keep-api helpers, kept here to avoid an import cycle (keep-api imports this).
+ * @param {Actor} keep
+ * @returns {object|null}
+ */
+function keepData(keep) {
+  return keep?.getFlag?.(MODULE_ID, KEEP_FLAG) ?? keep?.flags?.[MODULE_ID]?.[KEEP_FLAG] ?? null;
+}
+
+/** @param {Actor} actor @returns {boolean} true when the actor is one of our Keeps. */
+function isKeep(actor) {
+  return !!keepData(actor);
+}
+
+/**
  * Resolve a member's live benefits for a Keep, given the member's current
  * context (role from the roster, the Keep's tier, and token presence).
  * @param {Actor} keep
@@ -38,10 +54,11 @@ const FLAG_APPLIED = "benefitsApplied"; // flags.<MODULE_ID>.benefitsApplied[kee
  */
 export function resolveMember(keep, member) {
   const actor = fromUuidSafe(member.actorUuid);
+  const data = keepData(keep) ?? {};
   const ctx = {
     role: member.role,
-    tier: Number(keep.system?.tier ?? 0),
-    present: actor ? isPresentOnScene(actor, keep.system?.sceneId) : false,
+    tier: Number(data.tier ?? 0),
+    present: actor ? isPresentOnScene(actor, data.sceneId) : false,
   };
   const defs = definitionsForKeep(keep.id);
   return { ...computeResolution(ctx, defs), ctx, actor };
@@ -88,9 +105,9 @@ export function getMemberCapabilities(keep, member) {
  * @returns {Promise<void>}
  */
 export async function resolveKeep(keep) {
-  if (!keep || keep.type !== KEEP_TYPE) return;
+  if (!isKeep(keep)) return;
   if (!isAuthoritativeGM()) return; // single writer in a multi-client world
-  for (const member of keep.system?.members ?? []) {
+  for (const member of keepData(keep)?.members ?? []) {
     try {
       await resolveAndApplyMember(keep, member);
     } catch (err) {
@@ -175,7 +192,7 @@ export async function approveBenefit(keep, actorUuid, benefitId) {
  * @returns {boolean} whether the action was live and emitted
  */
 export function invokeAction(keep, actorUuid, benefitId) {
-  const member = (keep.system?.members ?? []).find((m) => m.actorUuid === actorUuid);
+  const member = (keepData(keep)?.members ?? []).find((m) => m.actorUuid === actorUuid);
   if (!member) return false;
   const { benefits } = resolveMember(keep, member);
   const benefit = benefits.find((b) => b.id === benefitId && b.primitive === PRIMITIVE.ACTION);
@@ -255,11 +272,13 @@ export function registerBenefitPrompt() {
  * world-time landing point (so `while-present` and post-fast-forward state settle).
  */
 export function registerBenefitEngine() {
-  // Membership / tier changes on the Keep actor.
+  // Membership / tier changes on the Keep actor (data lives under the module flag).
+  const membersPath = `${KEEP_DATA_PATH}.members`;
+  const tierPath = `${KEEP_DATA_PATH}.tier`;
   Hooks.on("updateActor", (actor, changed) => {
-    if (actor.type !== KEEP_TYPE) return;
-    if (foundry.utils.hasProperty(changed, "system.members") || foundry.utils.hasProperty(changed, "system.tier")) {
-      if (foundry.utils.hasProperty(changed, "system.members")) Hooks.callAll(HOOKS.MEMBERSHIP_CHANGED, actor);
+    if (!isKeep(actor)) return;
+    if (foundry.utils.hasProperty(changed, membersPath) || foundry.utils.hasProperty(changed, tierPath)) {
+      if (foundry.utils.hasProperty(changed, membersPath)) Hooks.callAll(HOOKS.MEMBERSHIP_CHANGED, actor);
       void resolveKeep(actor);
     }
   });
@@ -269,7 +288,7 @@ export function registerBenefitEngine() {
   const onTokenScene = (tokenDoc) => {
     const sceneId = tokenDoc?.parent?.id ?? tokenDoc?.scene?.id;
     if (!sceneId) return;
-    for (const keep of game.actors?.filter((a) => a.type === KEEP_TYPE && a.system?.sceneId === sceneId) ?? []) {
+    for (const keep of game.actors?.filter((a) => isKeep(a) && keepData(a)?.sceneId === sceneId) ?? []) {
       void resolveKeep(keep);
     }
   };
@@ -279,7 +298,7 @@ export function registerBenefitEngine() {
   // World-time landing point: benefits never block a fast-forward; they re-resolve
   // once here against the post-jump state.
   Hooks.on("updateWorldTime", () => {
-    for (const keep of game.actors?.filter((a) => a.type === KEEP_TYPE) ?? []) void resolveKeep(keep);
+    for (const keep of game.actors?.filter(isKeep) ?? []) void resolveKeep(keep);
   });
 }
 

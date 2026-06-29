@@ -12,9 +12,9 @@
  * @module rules/rule-engine
  */
 
-import { MODULE_ID, SETTINGS } from "../constants.js";
+import { MODULE_ID, SETTINGS, KEEP_DATA_PATH } from "../constants.js";
 import { log } from "../logger.js";
-import { listKeeps } from "../keep-api.js";
+import { listKeeps, getKeepData } from "../keep-api.js";
 import { onTick } from "../time/tick-dispatcher.js";
 import { computeTickPlan, listRules, DELIVERY } from "./rules.js";
 import { FAB_OP, planFabricateOps } from "../fabricate/fabricate-rules.js";
@@ -88,9 +88,10 @@ export async function applyTick({ prevTime, worldTime }) {
 
   for (const keep of listKeeps()) {
     try {
+      const data = getKeepData(keep);
       const { deltas, ports, applications } = computeTickPlan(
-        keep.system?.stockpile ?? {},
-        keep.system ?? {},
+        data.stockpile ?? {},
+        data,
         rules,
         prevTime,
         worldTime,
@@ -102,15 +103,15 @@ export async function applyTick({ prevTime, worldTime }) {
       // Direct (`keep` delivery) outputs and all input draws → stockpile.
       for (const [res, d] of Object.entries(deltas)) {
         if (!d) continue;
-        const current = Number(keep.system?.stockpile?.[res] ?? 0);
-        update[`system.stockpile.${res}`] = Math.max(0, current + d);
+        const current = Number(data.stockpile?.[res] ?? 0);
+        update[`${KEEP_DATA_PATH}.stockpile.${res}`] = Math.max(0, current + d);
       }
       // Routed (`port` delivery) outputs accumulate in per-buffer holds.
       for (const [bufferKey, resources] of Object.entries(ports)) {
         for (const [res, d] of Object.entries(resources)) {
           if (!d) continue;
-          const current = Number(keep.system?.buffers?.[bufferKey]?.[res] ?? 0);
-          update[`system.buffers.${bufferKey}.${res}`] = Math.max(0, current + d);
+          const current = Number(data.buffers?.[bufferKey]?.[res] ?? 0);
+          update[`${KEEP_DATA_PATH}.buffers.${bufferKey}.${res}`] = Math.max(0, current + d);
         }
       }
       if (Object.keys(update).length) await keep.update(update);
@@ -121,7 +122,7 @@ export async function applyTick({ prevTime, worldTime }) {
       // applied. Craft capping reads the just-written stockpile (the prior
       // projection); ingredients harvested *this* tick become available next.
       if (fab) {
-        const ops = planFabricateOps(applications, rules, keep.system?.stockpile ?? {});
+        const ops = planFabricateOps(applications, rules, data.stockpile ?? {});
         if (ops.length) {
           await runFabricateOps(fab, keep, ops);
           await syncFabricateInventory(fab, keep);
@@ -152,15 +153,19 @@ async function runFabricateOps(fab, keep, ops) {
   for (const op of ops) {
     if (op.op === FAB_OP.HARVEST) {
       // Gathering: start ONE attempt for the Keep (the gatherer) at the bound
-      // environment/task. Fabricate creates a timed run and resolves it on its
-      // own world-time hook — which our tick advances — so we don't loop `times`;
-      // the elapsed span drives how much the run yields. Yield lands in the Keep's
-      // inventory and is projected into the stockpile by syncFabricateInventory.
+      // environment/task. Outcomes are roll/check-driven and may yield nothing.
+      // Immediate tasks resolve synchronously here (and are swept up by the
+      // syncFabricateInventory call after these ops); timed tasks create a run
+      // Fabricate matures later on its own world-time processing, whose completion
+      // we project via the `attemptCompleted` hook (see registerFabricateGatheringSync).
+      // Either way we start one attempt per fired rule and let Fabricate decide the yield.
       await fab.startGathering({ actor: keep, environmentId: op.environmentId, taskId: op.taskId });
       continue;
     }
-    // Crafting (parked until Fabricate ships it): run the recipe `times` times,
-    // capped so a big time jump doesn't hammer the API in one tick.
+    // Crafting: run the recipe up to `times` times, capped so a big time jump
+    // doesn't hammer the API in one tick. Stop early on a hard failure (ingredients
+    // exhausted mid-loop, a misconfigured required check, or no craft method) — the
+    // post-op inventory sync reconciles whatever actually crafted.
     const times = Math.min(op.times, MAX_FAB_OPS_PER_RULE);
     if (times < op.times) {
       log.warn(
@@ -169,7 +174,15 @@ async function runFabricateOps(fab, keep, ops) {
       );
     }
     for (let i = 0; i < times; i++) {
-      await fab.craft({ recipeId: op.recipeId, actor: keep, ingredientSetId: op.ingredientSetId });
+      const res = await fab.craft({ recipeId: op.recipeId, actor: keep, ingredientSetId: op.ingredientSetId });
+      if (!res.attempted) break;
+      if (!res.success) {
+        log.debug(
+          `rules: ${keep.name} craft "${op.ruleId}" stopped after ${i} run(s): ` +
+            `${res.message ?? "unsuccessful"}`
+        );
+        break;
+      }
     }
   }
 }
@@ -186,16 +199,73 @@ async function runFabricateOps(fab, keep, ops) {
 async function syncFabricateInventory(fab, keep) {
   const inventory = fab.readInventory(keep);
   const projection = projectInventory(inventory, componentMap);
-  const current = keep.system?.stockpile ?? {};
+  const current = getKeepData(keep).stockpile ?? {};
   const reconciled = applyProjection(current, projection, componentMap);
 
   const managed = new Set([...managedResourceKeys(componentMap), ...Object.keys(projection)]);
   const update = {};
   for (const key of managed) {
     const next = reconciled[key] ?? 0;
-    if (Number(current[key] ?? 0) !== next) update[`system.stockpile.${key}`] = next;
+    if (Number(current[key] ?? 0) !== next) update[`${KEEP_DATA_PATH}.stockpile.${key}`] = next;
   }
   if (Object.keys(update).length) await keep.update(update);
+}
+
+/** Hook id of the active gathering-completion subscription, for idempotent re-bind. */
+let gatheringHookId = null;
+
+/**
+ * Subscribe to Fabricate's public gathering-completion hook so a Keep's harvested
+ * components are projected into its stockpile the moment an attempt resolves —
+ * covering immediate attempts *and* timed runs that mature on a later tick (or
+ * outside our op planning entirely). Only the authoritative GM writes. Idempotent:
+ * re-binding replaces the prior subscription. No-ops when Fabricate is unavailable.
+ *
+ * Call after {@link configureFabricate} has injected the adapter (e.g. at `ready`).
+ */
+export function registerFabricateGatheringSync() {
+  const fab = fabricateAdapter?.available ? fabricateAdapter : null;
+  const hook = fab?.gatheringCompletedHook?.();
+  if (gatheringHookId != null && hook) {
+    Hooks.off(hook, gatheringHookId);
+    gatheringHookId = null;
+  }
+  if (!fab || !hook) return;
+  gatheringHookId = Hooks.on(hook, (payload) => void onGatheringCompleted(payload));
+  log.debug(`rules: subscribed to ${hook} for stockpile projection`);
+}
+
+/**
+ * Project the gathering Keep's inventory when a Fabricate attempt completes.
+ * @param {object} payload  the `attemptCompleted` hook payload
+ * @returns {Promise<void>}
+ */
+async function onGatheringCompleted(payload) {
+  if (!isAuthoritativeGM()) return;
+  const fab = fabricateAdapter?.available ? fabricateAdapter : null;
+  if (!fab) return;
+  const keep = resolveKeepFromPayload(payload);
+  if (!keep) return;
+  try {
+    await syncFabricateInventory(fab, keep);
+  } catch (err) {
+    log.warn(`rules: gathering sync for "${keep?.name}" failed: ${err?.message ?? err}`);
+  }
+}
+
+/**
+ * Resolve the managed Keep a gathering payload refers to, or null if the gatherer
+ * is not one of our Keeps (so a PC/NPC gathering attempt is ignored).
+ * @param {object} payload
+ * @returns {Actor|null}
+ */
+function resolveKeepFromPayload(payload) {
+  const { actorUuid, actorId } = payload ?? {};
+  if (!actorUuid && !actorId) return null;
+  for (const keep of listKeeps()) {
+    if ((actorUuid && keep.uuid === actorUuid) || (actorId && keep.id === actorId)) return keep;
+  }
+  return null;
 }
 
 /**

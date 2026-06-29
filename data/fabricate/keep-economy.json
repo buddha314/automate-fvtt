@@ -1,0 +1,342 @@
+{
+  "fabricateVersion": "0.1.0",
+  "exportedAt": "2026-06-29T18:20:49.326Z",
+  "system": {
+    "id": "automate-fvtt-keep-economy",
+    "name": "Keep Economy",
+    "description": "Automate FVTT seed: deterministic resource conversion for the Keep economy.",
+    "enabled": true,
+    "resolutionMode": "simple",
+    "features": {
+      "recipeCategories": true,
+      "categories": true,
+      "itemTags": true,
+      "essences": false,
+      "multiStepRecipes": false,
+      "propertyMacros": false,
+      "craftingChecks": false,
+      "outcomeRouting": false,
+      "effectTransfer": false,
+      "gathering": false,
+      "salvage": true,
+      "chatOutput": true,
+      "itemPiles": false
+    },
+    "itemTags": [],
+    "recipeVisibility": {
+      "listMode": "global",
+      "knowledge": {
+        "mode": "itemOrLearned",
+        "item": {
+          "limitUses": false,
+          "destroyWhenExhausted": false
+        },
+        "learn": {
+          "consumeOnLearn": true,
+          "dragDropEnabled": true
+        }
+      }
+    },
+    "requirements": {
+      "time": {
+        "enabled": false
+      },
+      "currency": {
+        "enabled": false,
+        "spendStrategy": "actorProperty",
+        "providerId": "",
+        "macros": {
+          "canAfford": "",
+          "increment": "",
+          "decrement": ""
+        },
+        "units": []
+      }
+    },
+    "essenceDefinitions": [],
+    "recipeItemDefinitions": [],
+    "craftingCheck": {
+      "enabled": false,
+      "mode": "passFail",
+      "consumption": {
+        "consumeIngredientsOnFail": true,
+        "breakToolsOnFail": false
+      },
+      "progressive": {
+        "awardMode": "equal",
+        "allowPlayerReorder": false,
+        "rollFormula": "",
+        "checkBreakage": {
+          "triggers": []
+        }
+      },
+      "outcomes": [
+        "fail",
+        "pass"
+      ],
+      "routed": {
+        "type": "relative",
+        "rollFormula": "",
+        "dc": 15,
+        "thresholdMode": "meet",
+        "tiers": [],
+        "relativeOutcomes": [],
+        "fixedOutcomes": [],
+        "checkBreakage": {
+          "triggers": []
+        }
+      },
+      "simple": {
+        "rollFormula": "",
+        "dc": 15,
+        "thresholdMode": "meet",
+        "dcMode": "static",
+        "tiers": [],
+        "macroUuid": null,
+        "checkBreakage": {
+          "triggers": []
+        }
+      }
+    },
+    "salvageResolutionMode": "simple",
+    "toolBreakage": {
+      "authority": "toolSpecific"
+    },
+    "salvageCraftingCheck": {
+      "enabled": false,
+      "consumption": {
+        "consumeComponentOnFail": true,
+        "breakToolsOnFail": false
+      },
+      "simple": {
+        "rollFormula": "",
+        "dc": 15,
+        "thresholdMode": "meet",
+        "dcMode": "static",
+        "tiers": [],
+        "macroUuid": null,
+        "checkBreakage": {
+          "triggers": []
+        }
+      },
+      "routed": {
+        "type": "relative",
+        "rollFormula": "",
+        "dc": 15,
+        "thresholdMode": "meet",
+        "tiers": [],
+        "relativeOutcomes": [],
+        "fixedOutcomes": [],
+        "checkBreakage": {
+          "triggers": []
+        }
+      },
+      "progressive": {
+        "awardMode": "equal",
+        "allowPlayerReorder": false,
+        "rollFormula": "",
+        "checkBreakage": {
+          "triggers": []
+        }
+      },
+      "outcomes": [
+        "fail",
+        "pass"
+      ]
+    },
+    "gatheringCraftingCheck": {
+      "enabled": false,
+      "progressive": {
+        "awardMode": "equal",
+        "allowPlayerReorder": false,
+        "rollFormula": "",
+        "checkBreakage": {
+          "triggers": []
+        }
+      },
+      "routed": {
+        "type": "relative",
+        "rollFormula": "",
+        "dc": 15,
+        "thresholdMode": "meet",
+        "tiers": [],
+        "relativeOutcomes": [],
+        "fixedOutcomes": [],
+        "checkBreakage": {
+          "triggers": []
+        }
+      }
+    },
+    "alchemy": null,
+    "teaserConfig": {
+      "enabled": false,
+      "discoveryMode": "threshold",
+      "fragments": []
+    },
+    "categories": [],
+    "components": [
+      {
+        "id": "iron-ore",
+        "name": "Iron Ore",
+        "img": "icons/svg/item-bag.svg",
+        "description": "",
+        "sourceItemUuid": "automate-fvtt.seed.iron-ore",
+        "sourceUuid": "automate-fvtt.seed.iron-ore",
+        "fallbackItemIds": [],
+        "tier": null,
+        "tags": [],
+        "essences": {},
+        "salvage": {
+          "enabled": false,
+          "ingredientQuantity": 1,
+          "dcOverride": null,
+          "toolIds": [],
+          "resultGroups": []
+        }
+      },
+      {
+        "id": "iron-ingot",
+        "name": "Iron Ingot",
+        "img": "icons/svg/item-bag.svg",
+        "description": "",
+        "sourceItemUuid": "automate-fvtt.seed.iron-ingot",
+        "sourceUuid": "automate-fvtt.seed.iron-ingot",
+        "fallbackItemIds": [],
+        "tier": null,
+        "tags": [],
+        "essences": {},
+        "salvage": {
+          "enabled": false,
+          "ingredientQuantity": 1,
+          "dcOverride": null,
+          "toolIds": [],
+          "resultGroups": []
+        }
+      }
+    ],
+    "tools": [],
+    "gatheringRealms": [],
+    "gatheringRealmSettings": {
+      "enabled": false,
+      "revealMode": "manual",
+      "modifierVisibility": "visible"
+    }
+  },
+  "recipes": [
+    {
+      "id": "smelt-iron-ingot",
+      "name": "Smelt Iron Ingot",
+      "description": "",
+      "img": "icons/sundries/documents/blueprint-recipe-alchemical.webp",
+      "category": "general",
+      "craftingSystemId": "__SYSTEM_ID__",
+      "tags": [],
+      "enabled": true,
+      "locked": false,
+      "recipeItemId": null,
+      "linkedRecipeItemUuid": null,
+      "visibility": null,
+      "complex": false,
+      "steps": [],
+      "ingredientSets": [
+        {
+          "id": "set-default",
+          "name": "",
+          "ingredientGroups": [
+            {
+              "id": "group-ore",
+              "name": "",
+              "options": [
+                {
+                  "match": {
+                    "type": "component",
+                    "componentId": "iron-ore"
+                  },
+                  "componentId": "iron-ore",
+                  "systemItemId": "iron-ore",
+                  "itemUuid": null,
+                  "quantity": 2,
+                  "tag": null,
+                  "alternatives": [],
+                  "extractEffects": false,
+                  "effectFilter": null
+                }
+              ]
+            }
+          ],
+          "ingredients": [
+            {
+              "match": {
+                "type": "component",
+                "componentId": "iron-ore"
+              },
+              "componentId": "iron-ore",
+              "systemItemId": "iron-ore",
+              "itemUuid": null,
+              "quantity": 2,
+              "tag": null,
+              "alternatives": [],
+              "extractEffects": false,
+              "effectFilter": null
+            }
+          ],
+          "essences": {},
+          "toolIds": [],
+          "resultMapping": [],
+          "resultGroupId": null
+        }
+      ],
+      "resultGroups": [
+        {
+          "id": "group-default",
+          "name": "Default",
+          "checkOutcomeIds": [],
+          "results": [
+            {
+              "id": "oT0F273VU6M8iTdz",
+              "componentId": "iron-ingot",
+              "systemItemId": "iron-ingot",
+              "itemUuid": null,
+              "quantity": 1,
+              "propertyMacroUuid": null
+            }
+          ]
+        }
+      ],
+      "toolIds": [],
+      "timeRequirement": null,
+      "results": [
+        {
+          "id": "oT0F273VU6M8iTdz",
+          "componentId": "iron-ingot",
+          "systemItemId": "iron-ingot",
+          "itemUuid": null,
+          "quantity": 1,
+          "propertyMacroUuid": null
+        }
+      ],
+      "isVariable": false,
+      "transferEffects": false,
+      "outcomeRouting": null,
+      "resultSelection": null,
+      "checkTierId": null,
+      "currencyCost": null,
+      "teaser": {
+        "enabled": true,
+        "hiddenFields": [
+          "ingredients",
+          "results",
+          "description"
+        ],
+        "revealThreshold": 100,
+        "teaserDescription": ""
+      },
+      "metadata": {
+        "created": 1782757249324,
+        "modified": 1782757249324,
+        "author": "Gamemaster",
+        "version": "1.0.0"
+      }
+    }
+  ]
+}

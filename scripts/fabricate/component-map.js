@@ -3,7 +3,7 @@
  *
  * Fabricate models resources as **real Foundry Items** (its "components") living
  * on an Actor; our economy models them as a numeric ledger — the Keep's
- * `system.stockpile` (resource key → quantity). This module is the **pure,
+ * stockpile (resource key → quantity, stored under the Keep's module flag). This module is the **pure,
  * deterministic translation** between the two vocabularies, so it imports nothing
  * from Foundry or Fabricate and is fully unit-testable.
  *
@@ -78,6 +78,78 @@ export function resourceToComponent(map, resourceKey) {
  */
 export function managedResourceKeys(map) {
   return new Set(map?.byResource?.keys() ?? []);
+}
+
+/**
+ * Build a `sourceItemUuid → componentId` lookup across crafting systems.
+ * Fabricate identifies an owned item as a managed component by its source
+ * reference, so this index is the bridge between owned items and component ids.
+ * Component ids are globally unique, so flattening systems is safe; a later
+ * system wins on the (vanishingly unlikely) duplicate source uuid. Pure.
+ * @param {{components?: {id: string, sourceItemUuid?: string}[]}[]} systems  crafting systems
+ * @returns {Map<string, string>} sourceItemUuid → componentId
+ */
+export function buildComponentSourceIndex(systems) {
+  const index = new Map();
+  for (const system of systems ?? []) {
+    for (const c of system?.components ?? []) {
+      if (c?.sourceItemUuid && c?.id != null) index.set(c.sourceItemUuid, c.id);
+    }
+  }
+  return index;
+}
+
+/**
+ * Resolve an owned Foundry item to a managed componentId via its source
+ * reference, mirroring Fabricate's own matcher: `item.uuid`,
+ * `item._stats.compendiumSource`, or the legacy `item.flags.core.sourceId`,
+ * compared against the index built by {@link buildComponentSourceIndex}. Returns
+ * null when the item is not a managed component. Pure.
+ * @param {object} item  a Foundry Item (or item-like with the source fields)
+ * @param {Map<string, string>} bySource  sourceItemUuid → componentId
+ * @returns {?string}
+ */
+export function matchComponentId(item, bySource) {
+  if (!bySource?.size) return null;
+  const candidates = [item?.uuid, item?._stats?.compendiumSource, item?.flags?.core?.sourceId];
+  for (const src of candidates) {
+    if (src && bySource.has(src)) return bySource.get(src);
+  }
+  return null;
+}
+
+/**
+ * Read an item's stack quantity defensively across game systems (dnd5e stores a
+ * number at `system.quantity`; pf2e nests it at `system.quantity.value`). A
+ * present-but-uncounted item defaults to 1; negatives/garbage coerce to 0. Pure.
+ * @param {object} item
+ * @returns {number}
+ */
+export function itemQuantity(item) {
+  const q = item?.system?.quantity;
+  const n = q != null && typeof q === "object" ? q.value : q;
+  return Math.max(0, Number(n ?? 1) || 0);
+}
+
+/**
+ * Fold an actor's items into a `componentId → quantity` map, given the crafting
+ * systems that define the components. This is the pure core of the adapter's
+ * `readInventory` (which supplies `systems` and `items` from the live world).
+ * Items matching the same component sum together. Pure.
+ * @param {object[]} systems  crafting systems (each with a `components` array)
+ * @param {object[]} items    the actor's owned items
+ * @returns {Object<string, number>} componentId → quantity
+ */
+export function scanComponentInventory(systems, items) {
+  const out = {};
+  const bySource = buildComponentSourceIndex(systems);
+  if (!bySource.size) return out;
+  for (const item of items ?? []) {
+    const cid = matchComponentId(item, bySource);
+    if (!cid) continue;
+    out[cid] = (out[cid] ?? 0) + itemQuantity(item);
+  }
+  return out;
 }
 
 /**
