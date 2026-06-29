@@ -199,6 +199,41 @@ export async function collectPorts(keepOrId, bufferKey = null) {
   return keep;
 }
 
+/* --------------------------- treasury (currency pool) --------------------------- */
+
+/**
+ * Read a Keep's treasury (numeric currency pool).
+ * @param {Actor|string} keepOrId
+ * @returns {number}
+ */
+export function getTreasury(keepOrId) {
+  const keep = typeof keepOrId === "string" ? getKeep(keepOrId) : keepOrId;
+  return Math.max(0, Number(getKeepData(keep).treasury ?? 0) || 0);
+}
+
+/**
+ * Set the Keep treasury (clamped at zero).
+ * @param {Actor|string} keepOrId
+ * @param {number} amount
+ * @returns {Promise<Actor>}
+ */
+export async function setTreasury(keepOrId, amount) {
+  const keep = resolveKeep(keepOrId);
+  await keep.update({ [`${KEEP_DATA_PATH}.treasury`]: Math.max(0, Number(amount) || 0) });
+  return keep;
+}
+
+/**
+ * Add `delta` (may be negative) to the treasury, clamped at zero.
+ * @param {Actor|string} keepOrId
+ * @param {number} delta
+ * @returns {Promise<Actor>}
+ */
+export async function adjustTreasury(keepOrId, delta) {
+  const keep = resolveKeep(keepOrId);
+  return setTreasury(keep, getTreasury(keep) + (Number(delta) || 0));
+}
+
 /* --------------------------- membership (Change A) --------------------------- */
 
 /**
@@ -339,6 +374,9 @@ export const keepsApi = {
   getForScene: getSceneKeep,
   isKeep: isKeepActor,
   getData: getKeepData,
+  getTreasury,
+  setTreasury,
+  adjustTreasury,
   setResource,
   adjustResource,
   removeResource,

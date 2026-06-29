@@ -85,4 +85,49 @@ test.describe('Merchants — CRUD + restock', () => {
     expect(result.lastRestockAt, 'restock stamps the world time').toBe(1000);
     expect(result.afterRemove, 'merchant removed').toBe(0);
   });
+
+  test('sell surplus → treasury up; buy → treasury up + stock down', async ({ page }) => {
+    const skipReason = await joinAsGM(page);
+    test.skip(Boolean(skipReason), skipReason ?? '');
+    const ready = await page.evaluate(() => !!globalThis.game?.modules?.get('automate-fvtt')?.api?.merchants?.sellSurplus);
+    test.skip(!ready, 'merchant buy/sell API unavailable.');
+
+    const r = await page.evaluate(async () => {
+      const api = globalThis.game.modules.get('automate-fvtt').api;
+      let keep = null;
+      try {
+        keep = await api.keeps.create({ name: 'Merchant BuySell Keep' });
+        await api.keeps.setResource(keep, 'ore', 10);
+        const m = await api.merchants.add(keep, {
+          type: 'trader',
+          buys: [{ resourceKey: 'ore', price: 3 }],
+          stock: [{ itemUuid: 'Item.sword', quantity: 2, price: 10 }],
+        });
+
+        const t0 = api.keeps.getTreasury(keep);
+        const sell = await api.merchants.sellSurplus(keep, m.id, 'ore', 4);
+        const t1 = api.keeps.getTreasury(keep);
+        const ore1 = api.keeps.getData(keep).stockpile?.ore ?? 0;
+
+        const buy1 = await api.merchants.buy(keep, m.id, 'Item.sword');
+        const t2 = api.keeps.getTreasury(keep);
+        const buy2 = await api.merchants.buy(keep, m.id, 'Item.sword');
+        const buy3 = await api.merchants.buy(keep, m.id, 'Item.sword'); // out of stock
+
+        return { t0, sell, t1, ore1, buy1, t2, buy2, buy3 };
+      } finally { try { if (keep) await keep.delete(); } catch {} }
+    });
+
+    console.log('[merchant buysell]', JSON.stringify(r));
+    expect(r.t0).toBe(0);
+    expect(r.sell.sold, 'sold 4 ore').toBe(4);
+    expect(r.sell.revenue, 'revenue 4×3').toBe(12);
+    expect(r.t1, 'treasury credited by the sale').toBe(12);
+    expect(r.ore1, 'ore consumed by the sale').toBe(6);
+    expect(r.buy1.bought, 'first purchase succeeds').toBe(true);
+    expect(r.buy1.price, 'full price (no member discount)').toBe(10);
+    expect(r.t2, 'treasury credited by the purchase').toBe(22);
+    expect(r.buy2.remaining, 'stock decremented to 0').toBe(0);
+    expect(r.buy3.bought, 'third purchase is out of stock').toBe(false);
+  });
 });

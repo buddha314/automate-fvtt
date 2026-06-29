@@ -134,6 +134,31 @@ export function restockStock(restock, capacity, rng = Math.random) {
 }
 
 /**
+ * Apply a discount fraction to a price. `discount` is a fraction in [0,1]
+ * (0 = full price, 0.1 = 10% off); out-of-range values are clamped. Pure.
+ * @param {number} price
+ * @param {number} [discount=0]
+ * @returns {number}
+ */
+export function discountedPrice(price, discount = 0) {
+  const p = Math.max(0, Number(price) || 0);
+  const d = Math.min(1, Math.max(0, Number(discount) || 0));
+  return p * (1 - d);
+}
+
+/**
+ * Resolve a surplus sale: how much can actually be sold and the revenue. Pure.
+ * @param {number} available  units on hand
+ * @param {number} requested  units requested to sell
+ * @param {number} price      per-unit price
+ * @returns {{ sold: number, revenue: number }}
+ */
+export function surplusSale(available, requested, price) {
+  const sold = Math.max(0, Math.min(Math.floor(Number(available) || 0), Math.floor(Number(requested) || 0)));
+  return { sold, revenue: sold * Math.max(0, Number(price) || 0) };
+}
+
+/**
  * Is a merchant due to restock at the given world time? Pure.
  * @param {Merchant} merchant
  * @param {number} worldTime

@@ -16,9 +16,12 @@
 
 import { MODULE_ID, KEEP_DATA_PATH } from "../constants.js";
 import { log } from "../logger.js";
-import { getKeep, getKeepData, isKeepActor, listKeeps } from "../keep-api.js";
+import {
+  getKeep, getKeepData, isKeepActor, listKeeps,
+  adjustResource, adjustTreasury, getMemberModifier,
+} from "../keep-api.js";
 import { onTick } from "../time/tick-dispatcher.js";
-import { makeMerchant, restockStock, isRestockDue } from "./merchants.js";
+import { makeMerchant, restockStock, isRestockDue, surplusSale, discountedPrice } from "./merchants.js";
 
 const MERCHANTS_PATH = `${KEEP_DATA_PATH}.merchants`;
 
@@ -126,6 +129,73 @@ export async function restockDueMerchants(keep, worldTime) {
   return changed;
 }
 
+/* ------------------------------ buy / sell ------------------------------ */
+
+/**
+ * **Buy side (the output sink):** a merchant buys surplus of `resourceKey` from the
+ * Keep at its configured `buys` price — consuming it from the stockpile and crediting
+ * the Keep treasury. Operates on the numeric stockpile; for Fabricate-managed
+ * resources the surplus should arrive via the output overflow routing (#46) so the
+ * underlying items are already accounted for.
+ * @param {Actor|string} keepOrId
+ * @param {string} merchantId
+ * @param {string} resourceKey
+ * @param {number} qty  units to sell
+ * @returns {Promise<{sold: number, revenue: number, reason?: string}>}
+ */
+export async function sellSurplusToMerchant(keepOrId, merchantId, resourceKey, qty) {
+  const keep = resolveKeep(keepOrId);
+  const merchant = (getKeepData(keep).merchants ?? []).find((m) => m.id === merchantId);
+  if (!merchant) return { sold: 0, revenue: 0, reason: "no-merchant" };
+  const buy = (merchant.buys ?? []).find((b) => b.resourceKey === resourceKey);
+  if (!buy) return { sold: 0, revenue: 0, reason: "not-bought" };
+
+  const available = Number(getKeepData(keep).stockpile?.[resourceKey] ?? 0);
+  const { sold, revenue } = surplusSale(available, qty, buy.price);
+  if (sold <= 0) return { sold: 0, revenue: 0, reason: "no-surplus" };
+
+  await adjustResource(keep, resourceKey, -sold);
+  await adjustTreasury(keep, revenue);
+  log.debug(`${keep.name}: sold ${sold} ${resourceKey} to ${merchant.name} for ${revenue}.`);
+  return { sold, revenue };
+}
+
+/**
+ * **Sell side:** a buyer purchases one unit of `itemUuid` from a merchant's stock.
+ * Applies a member discount (the `merchant.priceMultiplier` benefit modifier when a
+ * member is given), decrements stock, and credits the Keep treasury with the take.
+ * Granting the item to the buyer and debiting their own coins is left to the caller
+ * (system-specific); the charged price is returned.
+ * @param {Actor|string} keepOrId
+ * @param {string} merchantId
+ * @param {string} itemUuid
+ * @param {object} [opts]
+ * @param {string} [opts.memberUuid]  buyer's member uuid (for a discount)
+ * @returns {Promise<{bought: boolean, price?: number, remaining?: number, reason?: string}>}
+ */
+export async function buyFromMerchant(keepOrId, merchantId, itemUuid, { memberUuid } = {}) {
+  const keep = resolveKeep(keepOrId);
+  const merchants = getKeepData(keep).merchants ?? [];
+  const merchant = merchants.find((m) => m.id === merchantId);
+  if (!merchant) return { bought: false, reason: "no-merchant" };
+  const entry = (merchant.stock ?? []).find((s) => s.itemUuid === itemUuid);
+  if (!entry || entry.quantity <= 0) return { bought: false, reason: "out-of-stock" };
+
+  const discount = memberUuid ? getMemberModifier(keep, memberUuid, "merchant.priceMultiplier") : 0;
+  const price = discountedPrice(entry.price, discount);
+  const remaining = entry.quantity - 1;
+
+  const nextStock = remaining > 0
+    ? merchant.stock.map((s) => (s.itemUuid === itemUuid ? { ...s, quantity: remaining } : s))
+    : merchant.stock.filter((s) => s.itemUuid !== itemUuid);
+  const next = merchants.map((m) => (m.id === merchantId ? { ...m, stock: nextStock } : m));
+
+  await keep.update({ [MERCHANTS_PATH]: next });
+  await adjustTreasury(keep, price);
+  log.debug(`${keep.name}: sold "${itemUuid}" from ${merchant.name} for ${price}.`);
+  return { bought: true, price, remaining };
+}
+
 /**
  * Wire merchant restocking to the world-time tick. Authoritative GM only. Call once
  * during init/ready (after the tick dispatcher is registered).
@@ -153,4 +223,6 @@ export const merchantsApi = {
   add: addMerchant,
   remove: removeMerchant,
   restock: restockMerchant,
+  sellSurplus: sellSurplusToMerchant,
+  buy: buyFromMerchant,
 };

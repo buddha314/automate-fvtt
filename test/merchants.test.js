@@ -12,6 +12,8 @@ import {
   pickWeighted,
   restockStock,
   isRestockDue,
+  discountedPrice,
+  surplusSale,
   DEFAULT_RESTOCK_SECONDS,
 } from "../scripts/merchants/merchants.js";
 
@@ -106,6 +108,25 @@ test("restockStock is empty with no candidates or zero capacity", () => {
 /* ------------------------------------------------------------------ */
 /* cadence                                                             */
 /* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/* buy / sell accounting                                               */
+/* ------------------------------------------------------------------ */
+
+test("discountedPrice applies and clamps the discount fraction", () => {
+  assert.equal(discountedPrice(100, 0), 100);
+  assert.equal(discountedPrice(100, 0.25), 75);
+  assert.equal(discountedPrice(100, 1), 0);
+  assert.equal(discountedPrice(100, 2), 0); // clamped to 1
+  assert.equal(discountedPrice(100, -1), 100); // clamped to 0
+});
+
+test("surplusSale sells min(available, requested) and computes revenue", () => {
+  assert.deepEqual(surplusSale(10, 3, 5), { sold: 3, revenue: 15 });
+  assert.deepEqual(surplusSale(2, 9, 5), { sold: 2, revenue: 10 }); // capped by available
+  assert.deepEqual(surplusSale(0, 5, 5), { sold: 0, revenue: 0 });
+  assert.deepEqual(surplusSale(7.9, 3.9, 4), { sold: 3, revenue: 12 }); // floored
+});
 
 test("isRestockDue: never-stocked is due; interval gates the rest", () => {
   assert.equal(isRestockDue(makeMerchant({ id: "m" }), 0), true); // lastRestockAt null

@@ -18,17 +18,22 @@
   actor update, so no seeded RNG needed) — `registerMerchantEngine`.
 - [ ] 2.4 Data-driven restock rules (JSON / cookbook), like the benefits importers.
 
-## 3. Buy side (the output sink — #46)  ⛔ DESIGN CHOKE POINT
-> Blocked on currency plumbing: the #46 output system isn't built, and *where the Keep
-> treasury lives* (the `actorProperty` path on the flag-backed Keep) is undecided.
-> Restock/CRUD (currency-free) are built; buy/sell wait on this.
-- [ ] 3.1 `buys` list → consume stockpile resource, credit Keep Fabricate currency.
-- [ ] 3.2 Wire the #46 `auto-sold` overflow policy to route surplus here.
+## 3. Buy side (the output sink — #46)
+> **Treasury resolved (2026-06-29):** the Keep treasury is a numeric pool at
+> `flags["automate-fvtt"].keep.treasury` (system-agnostic) — the `actorProperty`
+> location a Fabricate currency profile points at, so crafting costs share the pool.
+- [x] 3.1 `buys` list → consume stockpile resource, credit Keep treasury
+  (`sellSurplusToMerchant`, `api.merchants.sellSurplus`).
+- [ ] 3.2 Wire the #46 `auto-sold` overflow policy to route surplus here (needs the
+  output pipeline; for Fabricate-managed keys, item-level consumption too).
 
 ## 4. Sell side
-- [ ] 4.1 Player buy from stock: debit currency, decrement stock, grant item.
-- [ ] 4.2 Member discount via `api.benefits` modifier (e.g. `merchant.priceMultiplier`).
-- [ ] 4.3 Afford/out-of-stock/rounding edge cases.
+- [x] 4.1 Buy from stock: decrement stock, credit treasury with the take
+  (`buyFromMerchant`, `api.merchants.buy`). Granting the item + debiting the buyer's
+  own coins is left to the caller / Item Piles (system-specific).
+- [x] 4.2 Member discount via the `merchant.priceMultiplier` benefit modifier
+  (`getMemberModifier`).
+- [x] 4.3 Out-of-stock + price clamping handled; afford-check on the buyer is caller-side.
 
 ## 5. Attraction & evolution coupling
 - [ ] 5.1 Tier → merchant count / capacity / rarity / cadence (read tier only).
@@ -41,6 +46,7 @@
 ## 7. Tests & docs
 - [x] 7.1 Pure unit tests for the weighted draw + model (`test/merchants.test.js`);
   discount/buy/sell accounting deferred with §3/§4.
-- [~] 7.2 Live test: merchant CRUD + restock-to-capacity (`tests/merchant.spec.js`);
-  sell surplus → currency + member discount deferred with §3/§4.
+- [x] 7.2 Live test: merchant CRUD + restock-to-capacity AND sell-surplus→treasury +
+  buy→treasury/stock-down (`tests/merchant.spec.js`). Member-discount path is wired
+  (unit-tested via `discountedPrice`); a live member-discount case is still TODO.
 - [ ] 7.3 Update `MERCHANT.md` / `KEEP.md`; note the #46 + evolution couplings.
