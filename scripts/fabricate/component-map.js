@@ -99,21 +99,50 @@ export function buildComponentSourceIndex(systems) {
   return index;
 }
 
+/** Normalize a name for matching (trim + lowercase). */
+function normalizeName(name) {
+  return String(name ?? "").trim().toLowerCase();
+}
+
 /**
- * Resolve an owned Foundry item to a managed componentId via its source
- * reference, mirroring Fabricate's own matcher: `item.uuid`,
- * `item._stats.compendiumSource`, or the legacy `item.flags.core.sourceId`,
- * compared against the index built by {@link buildComponentSourceIndex}. Returns
- * null when the item is not a managed component. Pure.
- * @param {object} item  a Foundry Item (or item-like with the source fields)
+ * Build a `normalizedName → componentId` lookup across crafting systems. This is
+ * the fallback Fabricate itself uses ("source reference OR name"): items Fabricate
+ * **crafts** carry NO source reference back to the component (verified against the
+ * live craft engine), so they can only be recognized by name. Last component wins
+ * on a duplicate name. Pure.
+ * @param {{components?: {id: string, name?: string}[]}[]} systems
+ * @returns {Map<string, string>} normalizedName → componentId
+ */
+export function buildComponentNameIndex(systems) {
+  const index = new Map();
+  for (const system of systems ?? []) {
+    for (const c of system?.components ?? []) {
+      if (c?.name && c?.id != null) index.set(normalizeName(c.name), c.id);
+    }
+  }
+  return index;
+}
+
+/**
+ * Resolve an owned Foundry item to a managed componentId, mirroring Fabricate's
+ * matcher: first by **source reference** (`item.uuid`, `item._stats.compendiumSource`,
+ * or the legacy `item.flags.core.sourceId` vs {@link buildComponentSourceIndex}),
+ * then falling back to **name** (vs {@link buildComponentNameIndex}) — which is the
+ * only way to recognize Fabricate-crafted output, since it carries no source ref.
+ * Returns null when the item is not a managed component. Pure.
+ * @param {object} item  a Foundry Item (or item-like with source/name fields)
  * @param {Map<string, string>} bySource  sourceItemUuid → componentId
+ * @param {Map<string, string>} [byName]  normalizedName → componentId (optional fallback)
  * @returns {?string}
  */
-export function matchComponentId(item, bySource) {
-  if (!bySource?.size) return null;
+export function matchComponentId(item, bySource, byName) {
   const candidates = [item?.uuid, item?._stats?.compendiumSource, item?.flags?.core?.sourceId];
   for (const src of candidates) {
-    if (src && bySource.has(src)) return bySource.get(src);
+    if (src && bySource?.has?.(src)) return bySource.get(src);
+  }
+  if (byName?.size && item?.name) {
+    const id = byName.get(normalizeName(item.name));
+    if (id) return id;
   }
   return null;
 }
@@ -143,9 +172,10 @@ export function itemQuantity(item) {
 export function scanComponentInventory(systems, items) {
   const out = {};
   const bySource = buildComponentSourceIndex(systems);
-  if (!bySource.size) return out;
+  const byName = buildComponentNameIndex(systems);
+  if (!bySource.size && !byName.size) return out;
   for (const item of items ?? []) {
-    const cid = matchComponentId(item, bySource);
+    const cid = matchComponentId(item, bySource, byName);
     if (!cid) continue;
     out[cid] = (out[cid] ?? 0) + itemQuantity(item);
   }
