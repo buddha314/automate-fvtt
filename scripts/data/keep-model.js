@@ -68,6 +68,14 @@ export class KeepModel extends foundry.abstract.DataModel {
       boundBenefitIds: new fields.ArrayField(new fields.StringField({ blank: false })),
 
       /**
+       * Merchants attached to this Keep (the surplus→currency sink + player shop).
+       * Managed by `merchants/merchant-engine.js`; the per-merchant shape is
+       * validated by `merchants/merchants.js` (`makeMerchant`), so a permissive
+       * object array here just keeps the records from being stripped by cleanData.
+       */
+      merchants: new fields.ArrayField(new fields.ObjectField()),
+
+      /**
        * Port output buffers for producers set to `port` delivery: bufferKey
        * (asset/rule id) → resource → quantity held, awaiting belt routing
        * (Phase 7) or manual collection. Producers using `keep` delivery bypass

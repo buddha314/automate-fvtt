@@ -32,6 +32,7 @@ import { FAB_OP, makeFabricateRule } from "./fabricate/fabricate-rules.js";
 import { registerBenefitEngine, registerBenefitPrompt, approveBenefit, invokeAction } from "./benefits/benefit-engine.js";
 import { setupCraftPlaytest, teardownCraftPlaytest } from "./dev/craft-playtest.js";
 import { setupGatheringPlaytest, teardownGatheringPlaytest } from "./dev/gather-playtest.js";
+import { merchantsApi, registerMerchantEngine } from "./merchants/merchant-engine.js";
 import { registerDefinition, unregisterDefinition, listDefinitions, bind, unbind } from "./benefits/benefit-store.js";
 import { registerGenericCookbook, EXAMPLE_ROLES } from "./benefits/cookbook.js";
 import { importBenefits, importPf2eKingmakerStructures } from "./benefits/importers.js";
@@ -109,6 +110,12 @@ const state = {
     import: { custom: importBenefits, pf2eKingmakerStructures: importPf2eKingmakerStructures },
   },
   /**
+   * Merchants (the surplus→currency sink + player shop). Restocking is built and
+   * tick-driven; buy/sell currency movement is pending the output-economy plumbing.
+   * See `merchants/*` and the `merchants` capability.
+   */
+  merchants: merchantsApi,
+  /**
    * Dev/playtest helpers (not for production content). `setupCraftPlaytest()` builds
    * a self-contained ore→ingot scenario on a fresh Keep; `teardownCraftPlaytest()`
    * removes it. See `dev/craft-playtest.js` and `docs/playtest/`.
@@ -146,6 +153,9 @@ Hooks.once("init", () => {
   // Economy rules engine (Phase 3): evaluates producers/consumers/upkeep/
   // converters against each Keep on every tick. Registered after the dispatcher.
   registerRulesEngine();
+
+  // Merchant restocking on the world-time tick (authoritative GM only).
+  registerMerchantEngine();
 
   // Add a scene-control button to toggle the time-controls panel (GM only).
   Hooks.on("getSceneControlButtons", (controls) => {
