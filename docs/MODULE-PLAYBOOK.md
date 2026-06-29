@@ -61,9 +61,14 @@ locally, never redistributing. (See #38's `TreeSource` model.)
 
 ## 5. Shipping a Keep / economy
 
-- Create a Keep: `api.keeps.create({ name, stockpile, counts })` — it's a **core
-  actor type + module flag** (pf2e-safe), not a subtype. Open its panel with
-  `api.keeps.open(keep)`.
+- **Actually create the Keep** — `api.keeps.create({ name, stockpile, counts })`.
+  It's a **core actor type + module flag** (pf2e-safe), not a subtype, so it works in
+  a pf2e world (a module Actor *subtype* would throw there). Don't rely solely on
+  asset-bound rules with no Keep present. Open its panel with `api.keeps.open(keep)`.
+- **Crafting is live** — seed a real Fabricate crafting system
+  (`api.fabricate.seedSystem(...)`, see §3) and drive recipes through it; don't park
+  crafting behind numeric-only converters (that was a pre-1.0 Fabricate workaround,
+  now obsolete).
 - Register economy rules: `api.rules.register(api.rules.makeFabricateRule({ … }))`
   for harvest/craft; plain numeric rules for non-Fabricate flows.
 - Membership/benefits: `api.keeps.members.add(...)`, define benefits via
@@ -72,10 +77,21 @@ locally, never redistributing. (See #38's `TreeSource` model.)
 
 ## 6. Onboarding UX
 
-- Ship a **welcome splash** (ApplicationV2) that checks required deps and offers a
-  one-click **Adventure importer** — the `bandits-on-the-river` pattern
-  (`tests/foundry-splash.spec.js` shows the shape).
-- Gate the import button on deps present; show what's missing.
+Use Foundry's native mechanisms — don't build bespoke equivalents:
+
+- **Welcome splash** (ApplicationV2): checks required deps and offers a one-click
+  **Adventure importer** — the `bandits-on-the-river` pattern
+  (`tests/foundry-splash.spec.js` shows the shape). Gate the import on deps present.
+- **Adventure document** for the world: bundle scenes/actors/journals/macros into
+  one importable document (modern packaging, keeps folder structure). Use for
+  **permanent** world content.
+- **Foundry Tours** (`game.tours` / `Tour`) for an interactive walkthrough that
+  highlights the UI/canvas (Keep panel → harvest/craft → Time Controls → stockpile),
+  re-runnable from the Tours panel. Prefer over a custom guided app.
+- **A removable teaching sandbox** (not world content): drive it with a
+  **setup/teardown macro** (creates/removes a sample Keep + an *original* tutorial
+  tree) + **journal** reference + a **Tour** — **not** Adventure import (permanent,
+  no clean teardown). See the `crafting-tutorial` capability.
 
 ## 7. Packaging & release
 
@@ -102,6 +118,9 @@ locally, never redistributing. (See #38's `TreeSource` model.)
 - Reuse only content you're licensed to: **CC-BY**, **ORC**, **OGL/OGC** (opt-in,
   Section 15), **permissive**, **public-domain**, or **original**. Reject
   proprietary / Reserved-Material-only.
+- **For Paizo content (PF2e Remaster / SF2e), use ORC**, not OGL — pf2e Remaster is
+  ORC-licensed and ORC is first-class here; OGL 1.0a is legacy/opt-in (don't default a
+  new pf2e adventure to OGL).
 - **Exclude Reserved Material**: trademarks/logos, lore/flavor, Product-Identity
   names, art — regardless of the mechanics' license.
 - **Ship the required notice per tree**: CC-BY attribution string / ORC NOTICE / OGL
