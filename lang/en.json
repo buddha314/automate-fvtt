@@ -3,6 +3,7 @@
   "AUTOMATE_FVTT.Settings.Debug.Name": "Debug logging",
   "AUTOMATE_FVTT.Settings.Debug.Hint": "Print verbose Automate FVTT diagnostics to the browser console.",
   "AUTOMATE_FVTT.Keep.SheetLabel": "Automate FVTT: Keep",
+  "AUTOMATE_FVTT.Keep.OpenPanel": "Open Keep panel",
   "AUTOMATE_FVTT.Keep.Name": "Keep name",
   "AUTOMATE_FVTT.Keep.Counts": "Config counts",
   "AUTOMATE_FVTT.Keep.Henchmen": "Henchmen",

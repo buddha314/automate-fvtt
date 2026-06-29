@@ -1,16 +1,21 @@
 /**
- * Data model for the Keep actor sub-type (`automate-fvtt.keep`).
+ * Schema for a Keep's data.
  *
  * A Keep owns a {@link Stockpile} (a dynamic resource→quantity map) and a fixed
  * set of count-based config scalars (henchmen, garden) that drive the permanent
- * count-based economy rules in Phase 3. Registered on `CONFIG.Actor.dataModels`
- * during init.
+ * count-based economy rules in Phase 3.
+ *
+ * This is a **standalone** {@link foundry.abstract.DataModel}, NOT a registered
+ * actor sub-type model: Keeps are core-type actors that store this payload under
+ * a module flag (pf2e forbids module Actor sub-types — see `constants.KEEP_FLAG`).
+ * We use the schema to validate/clean the flag data via `cleanKeepData`
+ * (keep-api) rather than letting Foundry attach it to `actor.system`.
  * @module data/keep-model
  */
 
 const fields = foundry.data.fields;
 
-export class KeepModel extends foundry.abstract.TypeDataModel {
+export class KeepModel extends foundry.abstract.DataModel {
   static defineSchema() {
     return {
       /** Scene this Keep owns. One Keep per scene is enforced in Phase 6. */

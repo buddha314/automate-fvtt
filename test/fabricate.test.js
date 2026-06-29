@@ -18,6 +18,10 @@ import {
   managedResourceKeys,
   projectInventory,
   applyProjection,
+  buildComponentSourceIndex,
+  matchComponentId,
+  itemQuantity,
+  scanComponentInventory,
 } from "../scripts/fabricate/component-map.js";
 import {
   FAB_OP,
@@ -82,6 +86,98 @@ test("applyProjection is pure (does not mutate inputs)", () => {
   const stockpile = { ore: 1 };
   applyProjection(stockpile, { ore: 9 }, map);
   assert.equal(stockpile.ore, 1); // original unchanged
+});
+
+/* ------------------------------------------------------------------ */
+/* inventory scan (the readInventory core — match owned Items to        */
+/* components by source reference, since Fabricate has no getInventory)  */
+/* ------------------------------------------------------------------ */
+
+// A crafting system as Fabricate exposes it: components carry an id + the
+// sourceItemUuid an owned item is matched against.
+const SYSTEMS = [
+  {
+    components: [
+      { id: "fab.iron-ore", sourceItemUuid: "Compendium.world.items.iron" },
+      { id: "fab.iron-ingot", sourceItemUuid: "Compendium.world.items.ingot" },
+    ],
+  },
+];
+
+test("buildComponentSourceIndex maps sourceItemUuid → componentId across systems", () => {
+  const idx = buildComponentSourceIndex(SYSTEMS);
+  assert.equal(idx.get("Compendium.world.items.iron"), "fab.iron-ore");
+  assert.equal(idx.get("Compendium.world.items.ingot"), "fab.iron-ingot");
+  assert.equal(idx.size, 2);
+});
+
+test("buildComponentSourceIndex skips components missing id or sourceItemUuid", () => {
+  const idx = buildComponentSourceIndex([
+    { components: [{ id: "a" }, { sourceItemUuid: "x" }, { id: "b", sourceItemUuid: "y" }] },
+  ]);
+  assert.deepEqual([...idx.entries()], [["y", "b"]]);
+});
+
+test("matchComponentId resolves via each of Fabricate's three source fields", () => {
+  const idx = buildComponentSourceIndex(SYSTEMS);
+  // direct uuid
+  assert.equal(matchComponentId({ uuid: "Compendium.world.items.iron" }, idx), "fab.iron-ore");
+  // _stats.compendiumSource
+  assert.equal(
+    matchComponentId({ _stats: { compendiumSource: "Compendium.world.items.ingot" } }, idx),
+    "fab.iron-ingot"
+  );
+  // legacy flags.core.sourceId
+  assert.equal(
+    matchComponentId({ flags: { core: { sourceId: "Compendium.world.items.iron" } } }, idx),
+    "fab.iron-ore"
+  );
+});
+
+test("matchComponentId returns null for an unmanaged item or empty index", () => {
+  const idx = buildComponentSourceIndex(SYSTEMS);
+  assert.equal(matchComponentId({ uuid: "Actor.x.Item.y" }, idx), null);
+  assert.equal(matchComponentId({ uuid: "Compendium.world.items.iron" }, new Map()), null);
+});
+
+test("itemQuantity reads dnd5e scalar, pf2e nested value, and defaults to 1", () => {
+  assert.equal(itemQuantity({ system: { quantity: 5 } }), 5); // dnd5e
+  assert.equal(itemQuantity({ system: { quantity: { value: 3 } } }), 3); // pf2e
+  assert.equal(itemQuantity({ system: {} }), 1); // present but uncounted
+  assert.equal(itemQuantity({ system: { quantity: -2 } }), 0); // clamped
+});
+
+test("scanComponentInventory folds an actor's items into componentId totals", () => {
+  const items = [
+    { uuid: "Compendium.world.items.iron", system: { quantity: 4 } },
+    { _stats: { compendiumSource: "Compendium.world.items.iron" }, system: { quantity: 2 } }, // same component, summed
+    { flags: { core: { sourceId: "Compendium.world.items.ingot" } }, system: { quantity: { value: 1 } } },
+    { uuid: "Actor.x.Item.sword" }, // not a component → ignored
+  ];
+  const inv = scanComponentInventory(SYSTEMS, items);
+  assert.equal(inv["fab.iron-ore"], 6); // 4 + 2
+  assert.equal(inv["fab.iron-ingot"], 1);
+  assert.equal(Object.keys(inv).length, 2);
+});
+
+test("scanComponentInventory is empty when no systems define components", () => {
+  const items = [{ uuid: "Compendium.world.items.iron", system: { quantity: 4 } }];
+  assert.deepEqual(scanComponentInventory([], items), {});
+  assert.deepEqual(scanComponentInventory(SYSTEMS, []), {});
+});
+
+test("scanComponentInventory output feeds projectInventory end-to-end", () => {
+  const map = createComponentMap([
+    { componentId: "fab.iron-ore", resourceKey: "ore" },
+    { componentId: "fab.iron-ingot", resourceKey: "ingot" },
+  ]);
+  const inv = scanComponentInventory(SYSTEMS, [
+    { uuid: "Compendium.world.items.iron", system: { quantity: 4 } },
+    { uuid: "Compendium.world.items.ingot", system: { quantity: 2 } },
+  ]);
+  const projection = projectInventory(inv, map);
+  assert.equal(projection.ore, 4);
+  assert.equal(projection.ingot, 2);
 });
 
 /* ------------------------------------------------------------------ */

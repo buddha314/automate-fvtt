@@ -15,11 +15,6 @@
     "minimum": "13",
     "verified": "14"
   },
-  "documentTypes": {
-    "Actor": {
-      "keep": {}
-    }
-  },
   "relationships": {
     "requires": [
       {

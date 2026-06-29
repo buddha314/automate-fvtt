@@ -27,11 +27,33 @@ export const SETTINGS = Object.freeze({
 });
 
 /**
- * Actor sub-type id for a Keep. Foundry namespaces module sub-types as
- * `<module-id>.<type>`, so this MUST match the `documentTypes.Actor` key in
- * module.json (`keep`).
+ * How a Keep is identified and stored.
+ *
+ * A Keep is a **core-type actor** (see {@link KEEP_ACTOR_TYPE_BY_SYSTEM}) carrying
+ * our data under a single module flag, rather than a custom Actor sub-type. This
+ * is deliberate: pf2e — the primary target system — rejects module-defined Actor
+ * sub-types at `Actor.create` ("actor module subtypes are not supported"), so a
+ * `<module-id>.keep` sub-type can't exist there. Backing Keeps with a core type +
+ * flags is the one code path that works in every system.
+ *
+ * - `KEEP_FLAG` is the flag key (under scope `MODULE_ID`) holding the Keep ledger.
+ * - `KEEP_DATA_PATH` is the document-update path prefix for that flag object.
  */
-export const KEEP_TYPE = `${MODULE_ID}.keep`;
+export const KEEP_FLAG = "keep";
+
+/** Update-path prefix for a Keep's flag data, e.g. `${KEEP_DATA_PATH}.stockpile.ore`. */
+export const KEEP_DATA_PATH = `flags.${MODULE_ID}.${KEEP_FLAG}`;
+
+/**
+ * Preferred core Actor type to back a Keep, per game system. pf2e's `loot` is a
+ * lightweight item-container actor (a natural warehouse); dnd5e's `npc` is a safe
+ * generic. Unlisted systems fall back to a generic type at runtime
+ * (see `pickKeepActorType` in keep-api).
+ */
+export const KEEP_ACTOR_TYPE_BY_SYSTEM = Object.freeze({
+  pf2e: "loot",
+  dnd5e: "npc",
+});
 
 /** Default Keep portrait — temporary placeholder art for testing. */
 export const KEEP_ICON = `modules/${MODULE_ID}/assets/icons/nuclear-plant.svg`;
@@ -65,8 +87,7 @@ export const FABRICATE = Object.freeze({
    * **relative to the module root** under `data/fabricate/`; the engine resolves
    * it to `modules/automate-fvtt/<path>`. Author the system once in Fabricate's
    * UI, Export System → JSON, drop it in `data/fabricate/`, and list it here.
-   * Empty by default — no system is seeded until you add one.
    * @type {string[]}
    */
-  SEED_SYSTEMS: [],
+  SEED_SYSTEMS: ["data/fabricate/keep-economy.json"],
 });

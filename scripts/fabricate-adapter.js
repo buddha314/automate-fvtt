@@ -13,6 +13,7 @@
 
 import { FABRICATE } from "./constants.js";
 import { log } from "./logger.js";
+import { scanComponentInventory } from "./fabricate/component-map.js";
 
 export class FabricateAdapter {
   /** @type {boolean} */
@@ -142,31 +143,23 @@ export class FabricateAdapter {
   }
 
   /**
-   * Read a Fabricate component inventory off an actor as a flat
-   * componentId → quantity map — the input to the stockpile projection in
-   * {@link module:fabricate/component-map}. Falls back to scanning the actor's
-   * own Items for a Fabricate component flag when no inventory API is exposed.
+   * Read a Keep's Fabricate component inventory as a flat componentId → quantity
+   * map — the input to the stockpile projection in
+   * {@link module:fabricate/component-map}.
+   *
+   * Fabricate has **no `getInventory` API**: components are plain Foundry `Item`s
+   * on the actor, matched to a managed `Component` by source reference. We build a
+   * `sourceItemUuid → componentId` index from every known crafting system, then
+   * fold the actor's items into componentId totals — mirroring Fabricate's own
+   * matcher (`item.uuid` / `item._stats.compendiumSource` / legacy
+   * `item.flags.core.sourceId` vs the component's `sourceItemUuid`).
    * @param {Actor} actor
    * @returns {Object<string, number>} componentId → quantity (empty when unavailable)
    */
   readInventory(actor) {
     if (!this.#available || !actor) return {};
     try {
-      const m = this.#resolve(["getInventory", "inventory", "readInventory"]);
-      if (m) {
-        const inv = m.fn.call(m.ctx, actor);
-        return this.#normalizeInventory(inv);
-      }
-      // Fallback: components are real Items carrying a fabricate flag.
-      const out = {};
-      for (const item of actor.items ?? []) {
-        const cid =
-          item.getFlag?.(FABRICATE.ID, "componentId") ??
-          item.flags?.[FABRICATE.ID]?.componentId;
-        if (!cid) continue;
-        out[cid] = (out[cid] ?? 0) + (Number(item.system?.quantity ?? 1) || 0);
-      }
-      return out;
+      return scanComponentInventory(this.listSystems(), actor.items ?? []);
     } catch (err) {
       log.warn(`Fabricate readInventory failed: ${err?.message ?? err}`);
       return {};
@@ -174,45 +167,27 @@ export class FabricateAdapter {
   }
 
   /**
-   * Coerce whatever the inventory API returns (Map, array of {id,quantity},
-   * or plain object) into a componentId → qty record.
-   * @param {*} inv
-   * @returns {Object<string, number>}
-   */
-  #normalizeInventory(inv) {
-    const out = {};
-    if (!inv) return out;
-    const add = (id, qty) => {
-      if (!id) return;
-      out[id] = (out[id] ?? 0) + (Number(qty ?? 1) || 0);
-    };
-    if (inv instanceof Map) {
-      for (const [id, qty] of inv) add(id, qty);
-    } else if (Array.isArray(inv)) {
-      for (const e of inv) add(e?.id ?? e?.componentId, e?.quantity ?? e?.qty);
-    } else if (typeof inv === "object") {
-      for (const [id, qty] of Object.entries(inv)) add(id, qty);
-    }
-    return out;
-  }
-
-  /**
-   * Start a Fabricate **gathering attempt** for `actor` at a scene-linked
-   * environment + task. This is the real gathering surface in Fabricate rc.87
-   * (Gathering is the one implemented player feature; Crafting is "Coming soon").
+   * Start a Fabricate **gathering attempt** for `actor` at an environment + task.
    *
-   * A timed task creates an *active gathering run* and **Fabricate resolves it on
-   * world-time itself** — it hooks `updateWorldTime` and advances its own runs —
-   * so our tick dispatcher already drives completion; we do not poll. Yield lands
-   * in `actor`'s inventory; sweeping that into a Keep stockpile is a separate step.
+   * Outcomes are roll/check-driven and may yield nothing — read the result, never
+   * assume success. Resolution also splits two ways:
+   * - **Immediate** (task has no `timeRequirement`): resolved synchronously here;
+   *   the yield is already on the actor when this resolves.
+   * - **Timed** (task declares a `timeRequirement`): creates an active run that
+   *   Fabricate matures later on its own world-time processing (which our tick
+   *   advances), publishing the result once on the primary GM.
+   *
+   * Because of that split we do **not** poll for the yield: callers project the
+   * Keep's components from the public `attemptCompleted` hook
+   * ({@link gatheringCompletedHook}), which fires for both paths.
    *
    * Public entry point: `game.fabricate.startGatheringAttempt(options)`, which
    * enforces the current user as viewer. Requires an active GM and a system with
    * `features.gathering === true`.
    *
    * @param {object} args
-   * @param {Actor} args.actor          the gatherer (e.g. a village NPC or a PC)
-   * @param {string} args.environmentId scene-linked gathering environment id
+   * @param {Actor} args.actor          the gatherer (e.g. the Keep)
+   * @param {string} args.environmentId gathering environment id
    * @param {string} args.taskId        gathering task within that environment
    * @returns {Promise<object|null>} the attempt result, or null when unavailable.
    */
@@ -229,6 +204,19 @@ export class FabricateAdapter {
       log.warn(`Fabricate gathering attempt failed (env "${environmentId}"): ${err?.message ?? err}`);
       return null;
     }
+  }
+
+  /**
+   * The public hook Fabricate fires exactly once per terminal gathering attempt
+   * (immediate or matured-timed), carrying the gathered items with their
+   * `componentId`. Prefer the published constant; fall back to the documented
+   * literal so the seam still works if the constant moves.
+   * @returns {string}
+   */
+  gatheringCompletedHook() {
+    return (
+      this.#api?.HOOKS?.gathering?.ATTEMPT_COMPLETED ?? "fabricate.gathering.attemptCompleted"
+    );
   }
 
   /**
@@ -252,32 +240,56 @@ export class FabricateAdapter {
   }
 
   /**
+   * The outcome of a {@link craft} call.
+   * @typedef {Object} CraftResult
+   * @property {boolean} attempted  whether a craft method was actually invoked
+   * @property {boolean} success    whether Fabricate reported a successful craft
+   * @property {string} [message]   Fabricate's reason on a non-success/error
+   * @property {object} [result]    the raw Fabricate craft result
+   */
+
+  /**
    * Run a Fabricate recipe with the Keep as the crafting actor, so outputs land
-   * in the Keep's inventory. Mirrors the documented
-   * `craft(actor, recipeId, { componentSourceActors, ingredientSetId })` shape.
+   * in the Keep's inventory. Mirrors the public
+   * `craft(actor, recipe, { componentSourceActors, ingredientSetId })` surface
+   * (`recipe` accepts a recipe id string).
+   *
+   * Outcomes are **not** guaranteed: in `routed`/`progressive` resolution modes
+   * Fabricate rolls an engine-evaluated check that can fail and produce nothing,
+   * a misconfigured required check aborts with zero mutation, and insufficient
+   * ingredients/currency reject. The returned `success` reflects Fabricate's own
+   * `{ success }`, so callers can stop a repeat loop on a hard failure instead of
+   * hammering the API.
    * @param {object} args
    * @param {string} args.recipeId
    * @param {Actor} args.actor  crafting actor (the Keep) — also the default ingredient source
    * @param {Actor[]} [args.sourceActors]  where ingredients are drawn from (defaults to `[actor]`)
    * @param {string} [args.ingredientSetId]
-   * @returns {Promise<boolean>} true if a craft was attempted
+   * @returns {Promise<CraftResult>}
    */
   async craft({ recipeId, actor, sourceActors, ingredientSetId } = {}) {
-    if (!this.#available || !recipeId || !actor) return false;
+    if (!this.#available || !recipeId || !actor) return { attempted: false, success: false };
     const m = this.#resolve(["craft", "craftRecipe", "doCraft"]);
     if (!m) {
       log.warn(`Fabricate exposes no craft method; recipe "${recipeId}" not run.`);
-      return false;
+      return { attempted: false, success: false };
     }
     try {
-      await m.fn.call(m.ctx, actor, recipeId, {
+      const result = await m.fn.call(m.ctx, actor, recipeId, {
         componentSourceActors: sourceActors ?? [actor],
         ingredientSetId,
       });
-      return true;
+      // Absent/true ⇒ success; only an explicit `success: false` is a failure.
+      const success = result?.success !== false;
+      if (!success) {
+        log.debug(
+          `Fabricate craft "${recipeId}" did not succeed: ${result?.message ?? "no detail"}`
+        );
+      }
+      return { attempted: true, success, message: result?.message, result };
     } catch (err) {
       log.warn(`Fabricate craft of recipe "${recipeId}" failed: ${err?.message ?? err}`);
-      return false;
+      return { attempted: true, success: false, message: String(err?.message ?? err) };
     }
   }
 
@@ -289,9 +301,11 @@ export class FabricateAdapter {
   /* `{ fabricateVersion, exportedAt, system, recipes }`, and import   */
   /* it back via `game.fabricate.importSystemFromFile`, which accepts  */
   /* a raw JSON STRING (no file picker). So a module can ship that     */
-  /* JSON and seed it on load. Confirmed against Fabricate 1.0.0-rc.87 */
-  /* (src/systems/CraftingSystemExporter.js). Canvas node *placements* */
-  /* live on Scenes/tiles and ship separately as a scene pack.         */
+  /* JSON and seed it on load. The envelope shape is de-facto (the     */
+  /* spec defines storage, not a file wrapper), so re-export from a    */
+  /* current Fabricate when authoring a seed; the validator below is   */
+  /* Fabricate's own. Canvas node *placements* live on Scenes/tiles    */
+  /* and ship separately as a scene pack.                             */
   /* ---------------------------------------------------------------- */
 
   /** @returns {object|null} Fabricate's crafting-system manager, or null. */

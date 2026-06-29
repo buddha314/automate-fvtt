@@ -16,12 +16,12 @@
       <legend>{{localize "AUTOMATE_FVTT.Keep.Counts"}}</legend>
       <div class="keep-sheet__field">
         <label for="keep-henchmen">{{localize "AUTOMATE_FVTT.Keep.Henchmen"}}</label>
-        <input id="keep-henchmen" type="number" min="0" step="1" name="system.counts.henchmen"
+        <input id="keep-henchmen" type="number" min="0" step="1" name="counts.henchmen"
                value="{{counts.henchmen}}" {{#unless editable}}disabled{{/unless}} />
       </div>
       <div class="keep-sheet__field">
         <label for="keep-garden">{{localize "AUTOMATE_FVTT.Keep.Garden"}}</label>
-        <input id="keep-garden" type="number" min="0" step="1" name="system.counts.garden"
+        <input id="keep-garden" type="number" min="0" step="1" name="counts.garden"
                value="{{counts.garden}}" {{#unless editable}}disabled{{/unless}} />
       </div>
     </fieldset>
@@ -32,7 +32,7 @@
         {{#each resources as |r|}}
           <div class="keep-sheet__resource" data-resource="{{r.key}}">
             <span class="keep-sheet__resource-name">{{r.key}}</span>
-            <input type="number" min="0" name="system.stockpile.{{r.key}}" value="{{r.qty}}"
+            <input type="number" min="0" name="stockpile.{{r.key}}" value="{{r.qty}}"
                    {{#unless ../editable}}disabled{{/unless}} />
             {{#if ../editable}}
               <button type="button" class="keep-sheet__remove" data-action="removeResource"

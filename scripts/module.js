@@ -11,17 +11,21 @@
  * @module automate-fvtt
  */
 
-import { MODULE_ID, KEEP_TYPE, HOOKS, SETTINGS, FABRICATE } from "./constants.js";
+import { MODULE_ID, HOOKS, SETTINGS, FABRICATE } from "./constants.js";
 import { log } from "./logger.js";
 import { registerSettings } from "./settings.js";
 import { FabricateAdapter } from "./fabricate-adapter.js";
-import { KeepModel } from "./data/keep-model.js";
-import { KeepSheet } from "./apps/keep-sheet.js";
-import { keepsApi, registerKeepHooks } from "./keep-api.js";
+import { KeepApp } from "./apps/keep-sheet.js";
+import { keepsApi, registerKeepHooks, isKeepActor } from "./keep-api.js";
 import { registerTickDispatcher, onTick } from "./time/tick-dispatcher.js";
 import { formatWorldTime } from "./time/time-util.js";
 import { TimeControls } from "./apps/time-controls.js";
-import { registerRulesEngine, applyTick, configureFabricate } from "./rules/rule-engine.js";
+import {
+  registerRulesEngine,
+  applyTick,
+  configureFabricate,
+  registerFabricateGatheringSync,
+} from "./rules/rule-engine.js";
 import { listRules, registerRule, unregisterRule, computeTickPlan, setDelivery, DELIVERY } from "./rules/rules.js";
 import { createComponentMap } from "./fabricate/component-map.js";
 import { FAB_OP, makeFabricateRule } from "./fabricate/fabricate-rules.js";
@@ -54,7 +58,7 @@ function setComponentMap(pairs = []) {
 const state = {
   fabricate: new FabricateAdapter(),
   ready: false,
-  keeps: keepsApi,
+  keeps: { ...keepsApi, open: (keepOrId) => KeepApp.open(keepOrId) },
   time: {
     open: () => TimeControls.open(),
     toggle: () => TimeControls.toggle(),
@@ -84,14 +88,11 @@ Hooks.once("init", () => {
   log.info("Initializing Automate FVTT");
   registerSettings();
 
-  // Keep actor sub-type + sheet (Phase 1).
-  CONFIG.Actor.dataModels[KEEP_TYPE] = KeepModel;
-  foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, KeepSheet, {
-    types: [KEEP_TYPE],
-    makeDefault: true,
-    label: "AUTOMATE_FVTT.Keep.SheetLabel",
-  });
+  // Keeps are core-type actors flagged with our ledger (pf2e forbids module Actor
+  // sub-types), so there is no type/sheet to register — just the central change
+  // emitter and the Actors-directory entry point for the Keep panel.
   registerKeepHooks();
+  registerKeepDirectoryMenu();
 
   // World-time tick dispatcher (Phase 2). A demo subscriber proves the fan-out.
   registerTickDispatcher();
@@ -132,6 +133,10 @@ Hooks.once("ready", () => {
     componentMap: createComponentMap(componentMapPairs),
   });
 
+  // Project harvested components into the Keep stockpile whenever a Fabricate
+  // gathering attempt completes — covers both immediate and matured-timed runs.
+  registerFabricateGatheringSync();
+
   if (ok) log.info("Automate FVTT ready.");
   else if (game.user?.isGM) {
     log.notify(
@@ -154,6 +159,40 @@ Hooks.once("ready", () => {
 
   Hooks.callAll(HOOKS.READY, state.fabricate, ok);
 });
+
+/**
+ * Add an "Open Keep panel" entry to the Actors-directory context menu for Keep
+ * actors. Registers both the v13 (`getActorContextOptions`) and legacy
+ * (`getActorDirectoryEntryContext`) hooks; only the one the running core fires
+ * takes effect.
+ */
+function registerKeepDirectoryMenu() {
+  const build = (options) => {
+    options.push({
+      name: "AUTOMATE_FVTT.Keep.OpenPanel",
+      icon: '<i class="fa-solid fa-chess-rook"></i>',
+      condition: (li) => isKeepActor(resolveActorFromEntry(li)),
+      callback: (li) => {
+        const actor = resolveActorFromEntry(li);
+        if (actor) KeepApp.open(actor);
+      },
+    });
+  };
+  Hooks.on("getActorContextOptions", (_app, options) => build(options));
+  Hooks.on("getActorDirectoryEntryContext", (_html, options) => build(options));
+}
+
+/**
+ * Resolve the Actor for a directory entry across core versions (HTMLElement in
+ * v13, jQuery in v12).
+ * @param {HTMLElement|JQuery} li
+ * @returns {Actor|null}
+ */
+function resolveActorFromEntry(li) {
+  const el = li instanceof HTMLElement ? li : li?.[0];
+  const id = el?.dataset?.entryId ?? el?.dataset?.documentId;
+  return id ? game.actors?.get(id) ?? null : null;
+}
 
 /**
  * Is this client the single authoritative GM? Prefers Foundry's elected active
