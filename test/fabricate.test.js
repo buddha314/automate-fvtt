@@ -19,6 +19,7 @@ import {
   projectInventory,
   applyProjection,
   buildComponentSourceIndex,
+  buildComponentNameIndex,
   matchComponentId,
   itemQuantity,
   scanComponentInventory,
@@ -98,8 +99,8 @@ test("applyProjection is pure (does not mutate inputs)", () => {
 const SYSTEMS = [
   {
     components: [
-      { id: "fab.iron-ore", sourceItemUuid: "Compendium.world.items.iron" },
-      { id: "fab.iron-ingot", sourceItemUuid: "Compendium.world.items.ingot" },
+      { id: "fab.iron-ore", name: "Iron Ore", sourceItemUuid: "Compendium.world.items.iron" },
+      { id: "fab.iron-ingot", name: "Iron Ingot", sourceItemUuid: "Compendium.world.items.ingot" },
     ],
   },
 ];
@@ -164,6 +165,41 @@ test("scanComponentInventory is empty when no systems define components", () => 
   const items = [{ uuid: "Compendium.world.items.iron", system: { quantity: 4 } }];
   assert.deepEqual(scanComponentInventory([], items), {});
   assert.deepEqual(scanComponentInventory(SYSTEMS, []), {});
+});
+
+test("buildComponentNameIndex maps normalized name → componentId", () => {
+  const idx = buildComponentNameIndex(SYSTEMS);
+  assert.equal(idx.get("iron ore"), "fab.iron-ore");
+  assert.equal(idx.get("iron ingot"), "fab.iron-ingot");
+});
+
+test("matchComponentId falls back to name when there is no source ref", () => {
+  const bySource = buildComponentSourceIndex(SYSTEMS);
+  const byName = buildComponentNameIndex(SYSTEMS);
+  // A Fabricate-crafted item: matching name, NO source reference.
+  const crafted = { name: "Iron Ingot", system: { quantity: 1 } };
+  assert.equal(matchComponentId(crafted, bySource, byName), "fab.iron-ingot");
+  // Case/space-insensitive.
+  assert.equal(matchComponentId({ name: " iron ore " }, bySource, byName), "fab.iron-ore");
+  // Source ref still wins when present.
+  assert.equal(
+    matchComponentId({ uuid: "Compendium.world.items.iron", name: "Iron Ingot" }, bySource, byName),
+    "fab.iron-ore"
+  );
+  // Without a name index, a source-less item is unmatched (back-compat).
+  assert.equal(matchComponentId(crafted, bySource), null);
+});
+
+test("scanComponentInventory recognizes crafted items by name (no source ref)", () => {
+  // Mirrors the live finding: Fabricate-crafted output carries no source link.
+  const items = [
+    { uuid: "Compendium.world.items.iron", system: { quantity: 2 } }, // ore by source
+    { name: "Iron Ingot", system: { quantity: 1 } }, // crafted ingot, name only
+    { name: "Iron Ingot", system: { quantity: 3 } }, // another crafted batch, summed
+  ];
+  const inv = scanComponentInventory(SYSTEMS, items);
+  assert.equal(inv["fab.iron-ore"], 2);
+  assert.equal(inv["fab.iron-ingot"], 4); // 1 + 3 folded by name
 });
 
 test("scanComponentInventory output feeds projectInventory end-to-end", () => {
