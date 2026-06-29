@@ -5,9 +5,9 @@
   trade→RP, consumption, storage structures); recorded in `design.md` (2026-06-29).
 - [x] 1.2 Define the ordered sink pipeline (consume → convert → store → sell → overflow).
 - [x] 1.3 **Currency model — resolved (2026-06-29): Fabricate currency profiles
-  (real coins).** Sales credit and crafting costs debit one shared pool (design
-  Decision 3). Sub-question remaining: default `spendStrategy`
-  (`actorProperty` vs `actorInventory`).
+  (real coins), `spendStrategy: actorProperty`.** Treasury is a numeric property on
+  the Keep actor; sales credit and crafting costs debit one shared pool (design
+  Decision 3).
 - [ ] 1.4 Decide **overflow default** (`lost` vs `buffered`) and capacity granularity
   (per-resource vs shared warehouse).
 

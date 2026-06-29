@@ -60,13 +60,15 @@ This is the sink that **forces merchant development**. Surplus that exceeds stor
 (or is flagged for sale) is **sold to a merchant for currency**:
 - A merchant attached to the Keep buys configured resources at a price, converting
   surplus into the Keep's **currency**.
-- **Currency model — resolved: Fabricate currency profiles (real coins).** The Keep's
-  treasury is concrete currency held/spent via Fabricate's currency profile
-  (`requirements.currency`: `spendStrategy` `actorProperty` | `actorInventory` |
-  `macro`, with `units`). A merchant **sale credits** that currency; Fabricate
-  crafting **costs debit** the same pool — one consistent money model end to end
-  (vs. an abstract Kingmaker-style RP treasury, which we rejected for not integrating
-  with crafting costs). The merchant is the seam between resources and money.
+- **Currency model — resolved: Fabricate currency profiles (real coins), with
+  `spendStrategy: actorProperty`.** The Keep's treasury is concrete currency held on
+  the actor (a numeric property the profile reads/writes), spent via Fabricate's
+  currency profile (`requirements.currency`, with `units`). `actorProperty` fits the
+  lightweight flag-backed Keep (no coin *items* to manage, unlike `actorInventory`);
+  `macro` stays available for bespoke worlds. A merchant **sale credits** that
+  currency; Fabricate crafting **costs debit** the same pool — one consistent money
+  model end to end (vs. an abstract Kingmaker-style RP treasury, which we rejected for
+  not integrating with crafting costs). The merchant is the seam between resources and money.
 - Pairs with `MERCHANT.md`: merchants are attracted by Keep metrics, restock, and now
   also **buy** surplus — closing production → currency.
 
@@ -102,9 +104,9 @@ This is the sink/loop that **forces town evolution**:
 
 ## Open questions
 
-- **Currency:** **resolved (Decision 3) — Fabricate currency profiles (real coins)**,
-  so sales and crafting costs share one money pool. Sub-question: which
-  `spendStrategy` (`actorProperty` vs `actorInventory`) the Keep's treasury uses by default.
+- **Currency:** **resolved (Decision 3) — Fabricate currency profiles (real coins),
+  `spendStrategy: actorProperty`**, so sales and crafting costs share one money pool
+  held on the Keep actor.
 - **Capacity granularity:** per-resource caps, a shared warehouse pool, or both?
 - **Overflow default:** `lost` (Kingmaker) vs `buffered` (gentler) as our default?
 - **Tier computation:** which metrics (population, area, surplus, structures) and how

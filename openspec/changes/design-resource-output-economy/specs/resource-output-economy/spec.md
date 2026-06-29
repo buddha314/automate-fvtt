@@ -36,9 +36,10 @@ or per resource rather than hard-coded.
 
 ### Requirement: Surplus sells to a merchant for Fabricate currency
 The economy SHALL provide a sale sink that converts surplus resources into the Keep's
-currency through a merchant, at configured prices. Currency SHALL be **Fabricate
-currency profiles** (real coins), so a sale credits the same money pool that Fabricate
-crafting costs debit — not a separate abstract treasury.
+currency through a merchant, at configured prices. Currency SHALL be a **Fabricate
+currency profile** (real coins) using **`spendStrategy: actorProperty`** (the treasury
+is a numeric property on the Keep actor), so a sale credits the same money pool that
+Fabricate crafting costs debit — not a separate abstract treasury.
 
 #### Scenario: Selling surplus credits Fabricate currency
 - **WHEN** surplus is routed to the sale sink and a buying merchant is present
