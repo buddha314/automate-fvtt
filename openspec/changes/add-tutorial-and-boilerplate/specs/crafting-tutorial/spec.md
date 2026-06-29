@@ -29,6 +29,21 @@ Reserved Material, so it carries no licensing obligations.
 - **WHEN** the tutorial is shipped
 - **THEN** its tree and content are original and require no third-party license notice
 
+### Requirement: Guided via native Foundry Tours, not a bespoke app
+The interactive walkthrough SHALL be delivered with Foundry's built-in Tours
+framework (re-runnable from the Tours panel), the removable sample data SHALL be
+managed by a setup/teardown macro, and static reference content SHALL be journal
+pages. The tutorial SHALL NOT reimplement guided-step UI as a custom application,
+and SHALL NOT use Adventure import for the removable tutorial content.
+
+#### Scenario: The walkthrough runs and can be replayed
+- **WHEN** the user starts the tutorial
+- **THEN** a Foundry Tour guides the steps and can be reset/replayed from the Tours panel
+
+#### Scenario: Sample data is macro-managed, not Adventure-imported
+- **WHEN** the tutorial sets up or tears down its sample Keep/tree
+- **THEN** it does so via a macro (removable), not a permanent Adventure import
+
 ### Requirement: In-context help entry point
 The module SHALL surface an entry point to the tutorial / "how crafting works" from
 the Keep panel and link to the docs.

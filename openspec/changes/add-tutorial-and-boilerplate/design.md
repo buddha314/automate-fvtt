@@ -30,6 +30,25 @@ change adds both, reusing existing machinery and the licensing discipline (#38/#
    6. Teardown                           -> world restored
 ```
 
+**Tutorial medium — resolved (researched against Foundry norms): compose native
+mechanisms, don't build a bespoke app.**
+
+- **Foundry Tours** (`game.tours` / `Tour`) drive the interactive walkthrough — the
+  built-in framework that highlights UI/canvas/journal elements step by step, tracks
+  progress, and is re-runnable from the Tours Management Panel. Purpose-built for
+  "teach a module's mechanics," so a custom guided ApplicationV2 is **rejected** (it
+  would rebuild Tours).
+- **A setup/teardown macro** creates and removes the sample Keep + tutorial tree —
+  this is what makes the tutorial **opt-in and removable**.
+- **Journal pages** (in a compendium) are the static reference, linked from the Tour
+  and the Keep-panel help entry.
+- **Adventure import is NOT used for the tutorial** — it imports permanently with no
+  clean teardown, conflicting with removability; reserve it for the *starter world*
+  content, not this removable tutorial.
+
+Staged: **v1** = journal pages + setup/teardown macro (lowest effort, runs before any
+content packaging); **v2** = add the Tour for the guided UI walkthrough.
+
 ## Decision 2 — Boilerplate is a copyable, license-clean skeleton (not a generator)
 
 Ship a real example module under `examples/<boilerplate>/` that an author copies and
@@ -82,8 +101,10 @@ surfaces the boilerplate uses.
 
 ## Open questions
 
-- Tutorial medium: journal pages vs. a dedicated guided ApplicationV2 vs. an
-  Adventure import — start with journal + macro for lowest effort?
+- Tutorial medium — **resolved** (Decision 1): Foundry **Tours** (interactive driver)
+  + setup/teardown **macro** (removable sample data) + **journal** reference; no
+  bespoke app; Adventure import reserved for the starter world. v1 journal+macro,
+  v2 adds the Tour.
 - Boilerplate home — **resolved** (Decision 2): in-repo `examples/` now → graduate to
   a generated GitHub template repo later. Open sub-question: the CI step that
   generates/publishes the template repo from `examples/`.
