@@ -31,6 +31,7 @@ import { createComponentMap } from "./fabricate/component-map.js";
 import { FAB_OP, makeFabricateRule } from "./fabricate/fabricate-rules.js";
 import { registerBenefitEngine, registerBenefitPrompt, approveBenefit, invokeAction } from "./benefits/benefit-engine.js";
 import { setupCraftPlaytest, teardownCraftPlaytest } from "./dev/craft-playtest.js";
+import { setupGatheringPlaytest, teardownGatheringPlaytest } from "./dev/gather-playtest.js";
 import { registerDefinition, unregisterDefinition, listDefinitions, bind, unbind } from "./benefits/benefit-store.js";
 import { registerGenericCookbook, EXAMPLE_ROLES } from "./benefits/cookbook.js";
 import { importBenefits, importPf2eKingmakerStructures } from "./benefits/importers.js";
@@ -115,6 +116,8 @@ const state = {
   dev: {
     setupCraftPlaytest,
     teardownCraftPlaytest,
+    setupGatheringPlaytest,
+    teardownGatheringPlaytest,
   },
 };
 
