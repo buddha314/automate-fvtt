@@ -44,3 +44,32 @@ and the component map. Safe to run even if nothing is set up.
   ore harvested *this* tick feeds crafts on the *next* (gathering is Rung 2).
 - Verified by `tests/fabricate-craft.spec.js` (the engine loop) and
   `tests/fabricate-playtest.spec.js` (this harness end-to-end).
+
+## Gathering (Rung 2)
+
+A Keep auto-harvests a resource from a Fabricate gathering environment + task on the
+tick — **no canvas/map placement required**.
+
+```js
+const { keepId } = await game.modules.get("automate-fvtt").api.dev.setupGatheringPlaytest();
+game.modules.get("automate-fvtt").api.keeps.open(keepId);
+// UNPAUSE the game, then advance time → the Keep harvests "Playtest Berry".
+game.unpause?.(); // or click the pause toggle
+await game.time.advance(86400);
+// teardown:
+await game.modules.get("automate-fvtt").api.dev.teardownGatheringPlaytest();
+```
+
+Notes:
+- **Gathering is blocked while the game is paused** (`GAME_PAUSED`) — tick-driven
+  auto-harvest only runs in an **unpaused** world. Crafting has no such restriction.
+- Harvested items (like crafted output) carry **no source reference** — recognized by
+  **name**, so the gatherable component uses a distinct, stable name.
+- **Map placement is optional/separate.** Gathering runs purely from the
+  environment+task. Fabricate *also* has a canvas system (Scene **Regions** with a
+  `fabricate.interactable` behaviour + markers) to place gatherable nodes players walk
+  up to — a separate, player-facing layer (Rung 2b), not required for the Keep economy.
+- Gathering content is **not** part of a system export: environments use the public
+  `getGatheringEnvironmentStore()`, but tasks/drops live in the `gatheringConfig`
+  world setting (written directly).
+- Verified by `tests/fabricate-gather.spec.js`.
