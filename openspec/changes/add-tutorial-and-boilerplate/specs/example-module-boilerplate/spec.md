@@ -2,8 +2,8 @@
 
 ## ADDED Requirements
 
-### Requirement: Copyable skeleton module
-The boilerplate SHALL be a copyable example module under `examples/` that an author
+### Requirement: Copyable skeleton module under examples/
+The boilerplate SHALL ship in-repo under `examples/` as a copyable skeleton an author
 clones and renames, containing a `module.json` template, an entry script, sample
 content, an onboarding skeleton, a tests skeleton, and licensing templates. It SHALL
 NOT be packaged or released as a real, dependable module.
@@ -11,6 +11,15 @@ NOT be packaged or released as a real, dependable module.
 #### Scenario: An author starts from the skeleton
 - **WHEN** an author copies the boilerplate and renames it
 - **THEN** they have a working, license-clean starting point that loads against the engine
+
+### Requirement: Graduate to a generated GitHub template repository (deferred)
+When the skeleton stabilizes, the project SHALL graduate it to a standalone GitHub
+**template repository** ("Use this template") generated from the in-repo `examples/`
+copy, so `examples/` remains the single source of truth and the two do not drift.
+
+#### Scenario: Template repo is generated from examples/
+- **WHEN** the template repository is produced
+- **THEN** it is generated from the in-repo `examples/` boilerplate rather than hand-maintained separately
 
 ### Requirement: Follows the dependency contract
 The boilerplate SHALL declare `automate-fvtt` and `fabricate` in `module.json`

@@ -51,6 +51,20 @@ renames. It encodes the playbook as working files, not prose:
 A code generator/CLI is explicitly deferred — a copyable skeleton delivers most of
 the value now.
 
+**Boilerplate home — staged (resolved).** Two distinct artifacts were conflated:
+a *demonstration* (read-as-reference, proves the API, stays in lockstep) vs. a
+*starter authors clone* (one-click new project). The Foundry norm for the latter is
+a **GitHub template repository** ("Use this template" — e.g. the League of Foundry
+Developers template; asacolips' boilerplate paired with a wiki tutorial mirrors our
+boilerplate+playbook pairing). Decision:
+
+- **Now:** ship the boilerplate **in-repo under `examples/`** as the reference the
+  playbook points at — tightest lockstep with the engine + smoke test, one repo.
+- **Later (deferred):** **graduate it to a separate GitHub template repository**,
+  **generated from the in-repo `examples/` copy** (a CI publish step) so there is a
+  single source of truth and no drift.
+- **Not now:** a create-CLI/scaffolder — most effort, premature.
+
 ## Decision 3 — Keep both in lockstep with the playbook
 
 The boilerplate is the **executable form of `MODULE-PLAYBOOK.md`**; they must agree.
@@ -70,6 +84,7 @@ surfaces the boilerplate uses.
 
 - Tutorial medium: journal pages vs. a dedicated guided ApplicationV2 vs. an
   Adventure import — start with journal + macro for lowest effort?
-- Does the boilerplate live in this repo (`examples/`) or a separate template repo
-  (GitHub "template repository")? In-repo first; extract later if it grows.
+- Boilerplate home — **resolved** (Decision 2): in-repo `examples/` now → graduate to
+  a generated GitHub template repo later. Open sub-question: the CI step that
+  generates/publishes the template repo from `examples/`.
 - How much of the tutorial can be reused as the MVS starter's onboarding?

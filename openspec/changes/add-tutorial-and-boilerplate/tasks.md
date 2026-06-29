@@ -27,6 +27,13 @@
 - [ ] 3.1 Cross-link `MODULE-PLAYBOOK.md` ⇄ the boilerplate and `STARTER-MODULES.md`.
 - [ ] 3.2 Note the lockstep rule (playbook change ⇒ boilerplate update) in both.
 
-## 4. Decisions to confirm
+## 4. Decisions
 - [ ] 4.1 Tutorial medium — journal+macro (proposed) vs. guided app vs. Adventure import.
-- [ ] 4.2 Boilerplate home — in-repo `examples/` (proposed) vs. a separate GitHub template repo.
+- [x] 4.2 Boilerplate home — **resolved (2026-06-29):** in-repo `examples/` now →
+  graduate to a **generated** GitHub template repo later (single source of truth);
+  no create-CLI for now. Foundry norm is template repos (League template,
+  asacolips boilerplate+wiki). See design Decision 2.
+
+## 5. Graduate to a template repo (deferred)
+- [ ] 5.1 CI step that generates/publishes a standalone GitHub template repository
+  from the in-repo `examples/` boilerplate (kept drift-free).
