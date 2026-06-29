@@ -76,6 +76,14 @@ export class KeepModel extends foundry.abstract.DataModel {
       merchants: new fields.ArrayField(new fields.ObjectField()),
 
       /**
+       * The Keep treasury — a single numeric currency pool (abstract units),
+       * system-agnostic. Merchant sales credit it; crafting/upkeep costs debit it.
+       * This is the `actorProperty` location a Fabricate currency profile points at
+       * so the same pool is shared with Fabricate craft costs (output-economy #46).
+       */
+      treasury: new fields.NumberField({ required: true, nullable: false, initial: 0, min: 0 }),
+
+      /**
        * Port output buffers for producers set to `port` delivery: bufferKey
        * (asset/rule id) → resource → quantity held, awaiting belt routing
        * (Phase 7) or manual collection. Producers using `keep` delivery bypass
