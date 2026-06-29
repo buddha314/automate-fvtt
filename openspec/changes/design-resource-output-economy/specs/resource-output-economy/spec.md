@@ -34,13 +34,19 @@ or per resource rather than hard-coded.
 - **WHEN** the overflow policy is `buffered` and a resource overflows
 - **THEN** the excess is held in the Keep's buffers rather than lost
 
-### Requirement: Surplus sells to a merchant for currency
+### Requirement: Surplus sells to a merchant for Fabricate currency
 The economy SHALL provide a sale sink that converts surplus resources into the Keep's
-currency through a merchant, at configured prices.
+currency through a merchant, at configured prices. Currency SHALL be **Fabricate
+currency profiles** (real coins), so a sale credits the same money pool that Fabricate
+crafting costs debit — not a separate abstract treasury.
 
-#### Scenario: Selling surplus yields currency
+#### Scenario: Selling surplus credits Fabricate currency
 - **WHEN** surplus is routed to the sale sink and a buying merchant is present
-- **THEN** the surplus is consumed and the Keep's currency increases per the configured price
+- **THEN** the surplus is consumed and the Keep's Fabricate currency increases per the configured price
+
+#### Scenario: Crafting costs draw from the same pool
+- **WHEN** a recipe with a currency cost is crafted on the Keep
+- **THEN** it debits the same Fabricate currency that sales credit
 
 ### Requirement: Output economy couples to Keep evolution
 A Keep's tier/size SHALL determine storage capacity, baseline consumption, and

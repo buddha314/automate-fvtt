@@ -59,10 +59,14 @@ overflow as the tail.
 This is the sink that **forces merchant development**. Surplus that exceeds storage
 (or is flagged for sale) is **sold to a merchant for currency**:
 - A merchant attached to the Keep buys configured resources at a price, converting
-  surplus into the Keep's **currency/treasury**.
-- Currency model is an open question (Decision below): an **abstract treasury**
-  (Kingmaker-style RP, simplest) vs. **real coins** via Fabricate's currency profiles
-  (concrete, integrates with crafting costs). Either way the merchant is the seam.
+  surplus into the Keep's **currency**.
+- **Currency model — resolved: Fabricate currency profiles (real coins).** The Keep's
+  treasury is concrete currency held/spent via Fabricate's currency profile
+  (`requirements.currency`: `spendStrategy` `actorProperty` | `actorInventory` |
+  `macro`, with `units`). A merchant **sale credits** that currency; Fabricate
+  crafting **costs debit** the same pool — one consistent money model end to end
+  (vs. an abstract Kingmaker-style RP treasury, which we rejected for not integrating
+  with crafting costs). The merchant is the seam between resources and money.
 - Pairs with `MERCHANT.md`: merchants are attracted by Keep metrics, restock, and now
   also **buy** surplus — closing production → currency.
 
@@ -98,8 +102,9 @@ This is the sink/loop that **forces town evolution**:
 
 ## Open questions
 
-- **Currency:** abstract treasury (simplest, Kingmaker RP-like) or real coins via
-  Fabricate currency profiles (concrete, crafting-cost-integrated)?
+- **Currency:** **resolved (Decision 3) — Fabricate currency profiles (real coins)**,
+  so sales and crafting costs share one money pool. Sub-question: which
+  `spendStrategy` (`actorProperty` vs `actorInventory`) the Keep's treasury uses by default.
 - **Capacity granularity:** per-resource caps, a shared warehouse pool, or both?
 - **Overflow default:** `lost` (Kingmaker) vs `buffered` (gentler) as our default?
 - **Tier computation:** which metrics (population, area, surplus, structures) and how
@@ -110,4 +115,5 @@ This is the sink/loop that **forces town evolution**:
 
 - **Merchants** — buy/sell, attraction, restock (`MERCHANT.md`, #25).
 - **Keep evolution** — tier metrics + escalation (`KEEP.md`, #25, #20).
-- **Currency** — whichever model is chosen.
+- **Currency** — Fabricate currency profiles (real coins); wire the merchant sale to
+  credit the Keep's currency and confirm crafting costs debit the same pool.

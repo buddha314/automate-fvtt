@@ -45,6 +45,6 @@ consequences; building merchants and evolution are follow-on changes.
 ## Non-goals
 
 - Implementing merchants or the evolution/tier engine (separate changes this forces).
-- A specific currency model decision (abstract treasury vs. real coins) — surfaced as
-  an open question here.
+- Building the currency plumbing — the **model is decided (Fabricate currency
+  profiles / real coins)**, but wiring sales+costs to it is a follow-on.
 - Re-deriving production (gathering/crafting already covered).
