@@ -25,6 +25,7 @@ import {
   applyTick,
   configureFabricate,
   registerFabricateGatheringSync,
+  configureOutput,
 } from "./rules/rule-engine.js";
 import { listRules, registerRule, unregisterRule, computeTickPlan, setDelivery, DELIVERY } from "./rules/rules.js";
 import { createComponentMap } from "./fabricate/component-map.js";
@@ -87,6 +88,10 @@ const state = {
     makeFabricateRule,
     /** Configure the Fabricate component ↔ stockpile resource mapping. */
     setComponentMap,
+    /** Output pipeline (#46): per-resource storage caps `{ resourceKey: capacity }`. */
+    setCapacities: (caps) => configureOutput({ capacities: caps }),
+    /** Output overflow policy: `"lost" | "buffered" | "auto-sold"`. */
+    setOverflowPolicy: (policy) => configureOutput({ policy }),
     FAB_OP,
   },
   /**

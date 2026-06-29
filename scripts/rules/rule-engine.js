@@ -24,6 +24,7 @@ import {
   projectInventory,
   applyProjection,
 } from "../fabricate/component-map.js";
+import { computeOutputPlan, routeOverflow, OVERFLOW_BUFFER } from "./output-pipeline.js";
 
 /** Stable id for our subscription on the tick dispatcher. */
 const TICK_ID = "rules-engine";
@@ -43,6 +44,27 @@ const MAX_FAB_OPS_PER_RULE = 1000;
  */
 let fabricateAdapter = null;
 let componentMap = createComponentMap();
+
+/**
+ * Output-pipeline config (#46): per-resource storage caps and the overflow policy.
+ * Empty caps → the pipeline no-ops, preserving the unbounded Phase-3 behaviour.
+ * @type {Object<string, number>}
+ */
+let capacities = {};
+/** @type {"lost"|"buffered"|"auto-sold"} */
+let overflowPolicy = "lost";
+
+/**
+ * Configure the output pipeline. Set per-resource `capacities` and/or the overflow
+ * `policy`; call from the API. Capacities replace the prior map; policy persists.
+ * @param {object} cfg
+ * @param {Object<string, number>} [cfg.capacities]
+ * @param {"lost"|"buffered"|"auto-sold"} [cfg.policy]
+ */
+export function configureOutput({ capacities: caps, policy } = {}) {
+  if (caps) capacities = { ...caps };
+  if (policy) overflowPolicy = policy;
+}
 
 /**
  * Inject the Fabricate adapter and component map the engine uses to back the
@@ -97,41 +119,46 @@ export async function applyTick({ prevTime, worldTime }) {
         worldTime,
         { defaultDelivery }
       );
-      if (!applications.length) continue;
-
-      const update = {};
-      // Direct (`keep` delivery) outputs and all input draws → stockpile.
-      for (const [res, d] of Object.entries(deltas)) {
-        if (!d) continue;
-        const current = Number(data.stockpile?.[res] ?? 0);
-        update[`${KEEP_DATA_PATH}.stockpile.${res}`] = Math.max(0, current + d);
-      }
-      // Routed (`port` delivery) outputs accumulate in per-buffer holds.
-      for (const [bufferKey, resources] of Object.entries(ports)) {
-        for (const [res, d] of Object.entries(resources)) {
+      if (applications.length) {
+        const update = {};
+        // Direct (`keep` delivery) outputs and all input draws → stockpile.
+        for (const [res, d] of Object.entries(deltas)) {
           if (!d) continue;
-          const current = Number(data.buffers?.[bufferKey]?.[res] ?? 0);
-          update[`${KEEP_DATA_PATH}.buffers.${bufferKey}.${res}`] = Math.max(0, current + d);
+          const current = Number(data.stockpile?.[res] ?? 0);
+          update[`${KEEP_DATA_PATH}.stockpile.${res}`] = Math.max(0, current + d);
         }
-      }
-      if (Object.keys(update).length) await keep.update(update);
-
-      // Phase 4: run any Fabricate-backed rules (harvest/craft), then project
-      // the Keep's resulting component inventory back into the stockpile. Skips
-      // cleanly when Fabricate is unavailable — the numeric economy above still
-      // applied. Craft capping reads the just-written stockpile (the prior
-      // projection); ingredients harvested *this* tick become available next.
-      if (fab) {
-        const ops = planFabricateOps(applications, rules, data.stockpile ?? {});
-        if (ops.length) {
-          await runFabricateOps(fab, keep, ops);
-          await syncFabricateInventory(fab, keep);
+        // Routed (`port` delivery) outputs accumulate in per-buffer holds.
+        for (const [bufferKey, resources] of Object.entries(ports)) {
+          for (const [res, d] of Object.entries(resources)) {
+            if (!d) continue;
+            const current = Number(data.buffers?.[bufferKey]?.[res] ?? 0);
+            update[`${KEEP_DATA_PATH}.buffers.${bufferKey}.${res}`] = Math.max(0, current + d);
+          }
         }
+        if (Object.keys(update).length) await keep.update(update);
+
+        // Phase 4: run any Fabricate-backed rules (harvest/craft), then project
+        // the Keep's resulting component inventory back into the stockpile. Skips
+        // cleanly when Fabricate is unavailable — the numeric economy above still
+        // applied. Craft capping reads the just-written stockpile (the prior
+        // projection); ingredients harvested *this* tick become available next.
+        if (fab) {
+          const ops = planFabricateOps(applications, rules, data.stockpile ?? {});
+          if (ops.length) {
+            await runFabricateOps(fab, keep, ops);
+            await syncFabricateInventory(fab, keep);
+          }
+        }
+
+        log.debug(
+          `rules: ${keep.name} applied ${applications.map((a) => a.ruleId).join(", ")}`
+        );
       }
 
-      log.debug(
-        `rules: ${keep.name} applied ${applications.map((a) => a.ruleId).join(", ")}`
-      );
+      // Output pipeline tail (#46): clamp the stockpile to per-resource capacities
+      // and route the overflow (lost | buffered | auto-sold). Runs every tick so
+      // caps hold even on idle ticks; no-ops when no capacities are configured.
+      await applyOutputPipeline(fab, keep);
     } catch (err) {
       log.error(`rules: failed to apply tick to Keep "${keep?.name}":`, err);
     }
@@ -209,6 +236,58 @@ async function syncFabricateInventory(fab, keep) {
     if (Number(current[key] ?? 0) !== next) update[`${KEEP_DATA_PATH}.stockpile.${key}`] = next;
   }
   if (Object.keys(update).length) await keep.update(update);
+}
+
+/**
+ * Output pipeline tail (#46): clamp the Keep's stockpile to the configured per-resource
+ * capacities and route the overflow by policy (lost | buffered | auto-sold). For
+ * Fabricate-managed resources the overflow items are removed so the cap holds against
+ * the next projection. No-op when no capacities are configured.
+ * @param {import("../fabricate-adapter.js").FabricateAdapter|null} fab
+ * @param {Actor} keep
+ * @returns {Promise<void>}
+ */
+async function applyOutputPipeline(fab, keep) {
+  if (!Object.keys(capacities).length) return;
+  const data = getKeepData(keep);
+  const { clamped, overflow } = computeOutputPlan(data.stockpile ?? {}, capacities);
+  const overRes = Object.keys(overflow);
+  if (!overRes.length) return;
+
+  // Prices for auto-sold: the best buy price among this Keep's merchants per resource.
+  const prices = {};
+  if (overflowPolicy === "auto-sold") {
+    for (const m of data.merchants ?? []) {
+      for (const b of m.buys ?? []) {
+        const p = Number(b.price) || 0;
+        if (p > 0 && (prices[b.resourceKey] == null || p > prices[b.resourceKey])) prices[b.resourceKey] = p;
+      }
+    }
+  }
+  const routed = routeOverflow(overflow, overflowPolicy, { prices });
+
+  // Make caps stick for Fabricate-managed resources by removing the overflow items.
+  if (fab) {
+    for (const res of overRes) {
+      const componentId = componentMap.byResource?.get(res);
+      if (componentId) {
+        try { await fab.removeComponentUnits(keep, componentId, overflow[res]); }
+        catch (err) { log.warn(`output: removeComponentUnits(${res}) failed: ${err?.message ?? err}`); }
+      }
+    }
+  }
+
+  const update = {};
+  for (const res of overRes) update[`${KEEP_DATA_PATH}.stockpile.${res}`] = clamped[res];
+  for (const [res, amt] of Object.entries(routed.bufferDeltas)) {
+    const cur = Number(data.buffers?.[OVERFLOW_BUFFER]?.[res] ?? 0);
+    update[`${KEEP_DATA_PATH}.buffers.${OVERFLOW_BUFFER}.${res}`] = cur + amt;
+  }
+  if (routed.revenue > 0) {
+    update[`${KEEP_DATA_PATH}.treasury`] = Math.max(0, Number(data.treasury ?? 0) + routed.revenue);
+  }
+  if (Object.keys(update).length) await keep.update(update);
+  log.debug(`output: ${keep.name} overflow ${JSON.stringify(overflow)} via ${overflowPolicy} (+${routed.revenue} treasury).`);
 }
 
 /** Hook id of the active gathering-completion subscription, for idempotent re-bind. */

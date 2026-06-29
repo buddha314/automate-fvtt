@@ -8,21 +8,25 @@
   (real coins), `spendStrategy: actorProperty`.** Treasury is a numeric property on
   the Keep actor; sales credit and crafting costs debit one shared pool (design
   Decision 3).
-- [ ] 1.4 Decide **overflow default** (`lost` vs `buffered`) and capacity granularity
-  (per-resource vs shared warehouse).
+- [x] 1.4 **Overflow default — resolved: `lost`** (Kingmaker prior art; configurable
+  per `setOverflowPolicy`). Capacity granularity: **per-resource** (`setCapacities`),
+  configurable; tier-scaling is the evolution follow-on.
 
-## 2. Storage & overflow
-- [ ] 2.1 Per-resource capacity model, tier-scaled, with storage upgrades.
-- [ ] 2.2 Clamp stored amounts to capacity in the tick flow (respecting the
-  projection ownership invariant for Fabricate-managed keys).
-- [ ] 2.3 Overflow policy (`lost` | `buffered` via `system.buffers` | `auto-sold`).
+## 2. Storage & overflow  ✅ BUILT
+- [~] 2.1 Per-resource capacity model (`rules.setCapacities`, `output-pipeline.js`).
+  Built; **tier-scaling + storage upgrades** are the evolution follow-on.
+- [x] 2.2 Clamp stored amounts to capacity in the tick flow (`applyOutputPipeline`);
+  Fabricate-managed keys honor the invariant via `adapter.removeComponentUnits` so
+  the cap holds against the next projection.
+- [x] 2.3 Overflow policy (`lost` | `buffered` via `system.buffers.overflow` |
+  `auto-sold` → merchant price → treasury). Pure logic + tick wiring; live-tested.
 
-## 3. Sale sink (forces merchants — follow-on)
-- [ ] 3.1 Define the merchant **buy** interface: resource → price → currency.
-- [ ] 3.2 Wire surplus/auto-sell → **Fabricate currency** (sale credits the profile;
-  confirm crafting costs debit the same pool).
-- [ ] 3.3 Hand off full merchant build (attraction, restock, sell-to-player) to a
-  merchants change (`MERCHANT.md`, #25).
+## 3. Sale sink (forces merchants — built in #48/#49/#50)
+- [x] 3.1 Merchant **buy** interface: `merchant.buys` (resource → price); `api.merchants.sellSurplus`.
+- [x] 3.2 `auto-sold` overflow → treasury (the Keep currency pool at
+  `flags.automate-fvtt.keep.treasury`, the `actorProperty` a Fabricate profile points
+  at). Crafting-cost debit from the same pool is the Fabricate-currency wiring follow-on.
+- [x] 3.3 Full merchant build (restock, buy/sell, member discounts) landed (#48–#50).
 
 ## 4. Evolution coupling (forces town evolution — follow-on)
 - [ ] 4.1 Tier → capacity / consumption / merchant attraction mapping.
@@ -31,6 +35,6 @@
   (`KEEP.md`, #25, #20).
 
 ## 5. Integration & tests
-- [ ] 5.1 Slot the sink pipeline into the tick rules engine after producers/converters.
-- [ ] 5.2 Pure unit tests for caps/overflow/sale routing.
+- [x] 5.1 `applyOutputPipeline` slotted into the tick after producers/converters/projection.
+- [x] 5.2 Pure unit tests (`test/output-pipeline.test.js`) + live (`tests/output-pipeline.spec.js`).
 - [ ] 5.3 Docs: update `KEEP.md` / `MERCHANT.md` with the output model.
