@@ -40,3 +40,12 @@ This makes the choice of each item inversely proportional to its costs.
 ## Merchant System
 
 A merchant is recruited to a Keep using metrics provided by the Module or Game System.
+
+## Implementation status
+
+Built (`scripts/merchants/*`, `api.merchants.*`): a merchant is a typed record bound
+to a Keep with **weighted-random restock** (inverse-to-value, rarity rising with
+tier), a **buy side** that turns surplus into the Keep treasury (the output sink), and
+a **sell side** with member-benefit discounts. **Attraction by tier** and an **Item
+Piles** shop UI are the main deferred pieces. See **[ECONOMY.md](ECONOMY.md)** for the
+full loop, status, API, and open decisions.
