@@ -248,9 +248,12 @@ async function syncFabricateInventory(fab, keep) {
  * @returns {Promise<void>}
  */
 async function applyOutputPipeline(fab, keep) {
-  if (!Object.keys(capacities).length) return;
   const data = getKeepData(keep);
-  const { clamped, overflow } = computeOutputPlan(data.stockpile ?? {}, capacities);
+  // Per-keep capacities (from the Keep's tier, written by the evolution engine)
+  // override/extend the engine-global capacities.
+  const effectiveCaps = { ...capacities, ...(data.capacities ?? {}) };
+  if (!Object.keys(effectiveCaps).length) return;
+  const { clamped, overflow } = computeOutputPlan(data.stockpile ?? {}, effectiveCaps);
   const overRes = Object.keys(overflow);
   if (!overRes.length) return;
 

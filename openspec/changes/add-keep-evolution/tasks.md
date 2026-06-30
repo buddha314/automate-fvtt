@@ -3,32 +3,36 @@
 ## 1. Tier model & metrics
 - [x] 1.1 Ground in `KEEP.md` (hamlet→city tiers; metrics: membership, area, order) +
   PF2e Kingmaker size/level prior art + the output/merchant tier stubs.
-- [ ] 1.2 Pure `computeTier(metrics, table)` — highest tier whose minimums are all met.
-- [ ] 1.3 Metric map on the Keep: membership (derived = roster count), area, order;
-  extensible by content. Decide whether treasury/structures feed it.
-- [ ] 1.4 Default threshold table (`KEEP.md` brackets), overridable per world.
+- [x] 1.2 Pure `computeTier(metrics, table)` — highest tier whose minimums are all met
+  (`evolution/evolution.js`, unit-tested).
+- [x] 1.3 Metric map on the Keep (`metrics` flag) + derived membership (`metricsOf`);
+  `setMetric` API. Treasury/structures-as-metric is the open growth-driver question.
+- [x] 1.4 Default `DEFAULT_TIER_TABLE` (`KEEP.md` brackets), overridable via
+  `configureEvolution({ tierTable })`.
 
-## 2. Recompute engine
-- [ ] 2.1 Recompute tier on metric change (membership add/remove, area/order edit),
-  authoritative GM only; write the `tier` flag.
-- [ ] 2.2 Emit a `tierChanged` hook when the tier moves; event-driven, never blocks the tick.
-- [ ] 2.3 Optional cheap tick backstop re-check.
+## 2. Recompute engine  ✅ BUILT
+- [x] 2.1 Recompute on metric/membership change, authoritative GM, write the `tier`
+  flag (`recomputeTier`, `registerEvolutionEngine`).
+- [x] 2.2 Emit `HOOKS.TIER_CHANGED` when the tier moves; event-driven, off the tick.
+- [ ] 2.3 Optional cheap tick backstop re-check (deferred).
 
 ## 3. Tier → economy outputs
-- [ ] 3.1 Per-tier **storage capacity** table → push to `api.rules.setCapacities` on `tierChanged`.
-- [ ] 3.2 Per-tier **consumption** scaling (decide flat vs per-capita) → upkeep rules.
-- [ ] 3.3 Per-tier **merchant attraction** (count/capacity/rarity/cadence) the merchant
-  system reads.
-- [ ] 3.4 **Benefit tier-gate** — a benefit def may require a minimum tier.
+- [x] 3.1 Per-tier **storage capacities** (`capacitiesForTier`) written to the Keep
+  `capacities` flag on tier change; `applyOutputPipeline` reads per-keep caps (merged
+  over the global). Lights the output-pipeline cap stub end-to-end.
+- [ ] 3.2 Per-tier **consumption** scaling → upkeep rules. **Choke: model undecided (4.3).**
+- [ ] 3.3 Per-tier **merchant attraction** auto-applied to merchants. **Choke: how
+  aggressively to mutate existing merchants (4.x).**
+- [ ] 3.4 **Benefit tier-gate** — a benefit def may require a minimum tier (follow-on).
 
 ## 4. Decisions
-- [ ] 4.1 Tier-from-metrics rule: minimum-across-brackets (proposed) vs. weighted vs.
-  per-metric tiers.
-- [ ] 4.2 Does treasury/structures feed growth (the produce→grow loop)?
-- [ ] 4.3 Consumption model (flat per-tier vs per-capita).
-- [ ] 4.4 Where the tier→output tables live (constants vs settable config).
+- [x] 4.1 Tier-from-metrics rule — **minimum-across-brackets** (built: highest bracket
+  whose every minimum is met).
+- [ ] 4.2 Does treasury/structures feed growth (the produce→grow loop)? **Open.**
+- [ ] 4.3 Consumption model (flat per-tier vs per-capita)? **Open** (gates 3.2).
+- [x] 4.4 tier→output tables — **settable config** (`configureEvolution`), defaults shipped.
 
 ## 5. Tests & docs
-- [ ] 5.1 Pure unit tests: `computeTier` brackets/edges; tier→table lookups.
-- [ ] 5.2 Live: metric change → tier moves → caps/merchant params update; tier-gated benefit.
+- [x] 5.1 Pure unit tests (`test/evolution.test.js`).
+- [~] 5.2 Live: metric→tier→caps→clamp (`tests/evolution.spec.js`, skips w/o GM seat); merchant-attraction/benefit-gate live cases TODO.
 - [ ] 5.3 Update `KEEP.md` / `MERCHANT.md` with the tier model + couplings.

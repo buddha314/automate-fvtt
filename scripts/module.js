@@ -34,6 +34,7 @@ import { registerBenefitEngine, registerBenefitPrompt, approveBenefit, invokeAct
 import { setupCraftPlaytest, teardownCraftPlaytest } from "./dev/craft-playtest.js";
 import { setupGatheringPlaytest, teardownGatheringPlaytest } from "./dev/gather-playtest.js";
 import { merchantsApi, registerMerchantEngine } from "./merchants/merchant-engine.js";
+import { evolutionApi, registerEvolutionEngine } from "./evolution/evolution-engine.js";
 import { registerDefinition, unregisterDefinition, listDefinitions, bind, unbind } from "./benefits/benefit-store.js";
 import { registerGenericCookbook, EXAMPLE_ROLES } from "./benefits/cookbook.js";
 import { importBenefits, importPf2eKingmakerStructures } from "./benefits/importers.js";
@@ -121,6 +122,11 @@ const state = {
    */
   merchants: merchantsApi,
   /**
+   * Keep evolution — tier computed from metrics drives storage caps (and, as they
+   * adopt it, merchant attraction + benefit gates). See `evolution/*`.
+   */
+  evolution: evolutionApi,
+  /**
    * Dev/playtest helpers (not for production content). `setupCraftPlaytest()` builds
    * a self-contained ore→ingot scenario on a fresh Keep; `teardownCraftPlaytest()`
    * removes it. See `dev/craft-playtest.js` and `docs/playtest/`.
@@ -161,6 +167,9 @@ Hooks.once("init", () => {
 
   // Merchant restocking on the world-time tick (authoritative GM only).
   registerMerchantEngine();
+
+  // Keep evolution: recompute tier on metric/membership change (authoritative GM).
+  registerEvolutionEngine();
 
   // Add a scene-control button to toggle the time-controls panel (GM only).
   Hooks.on("getSceneControlButtons", (controls) => {
