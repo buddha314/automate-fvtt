@@ -106,3 +106,12 @@ api.benefits.import.pf2eKingmakerStructures(structures); // → defs for GM revi
 A small generic cookbook (rest, storage, voting, stockpile access, summon-guard)
 ships with the engine as a reference/fallback; system-specific cookbooks live in
 content modules.
+
+## Implementation status
+
+The economy these concepts describe is largely built and tick-driven. A Keep's
+**tier** (the hamlet→city progression above) is **computed from metrics** — membership,
+land area, lawfulness/order — and drives storage capacity (and, as they adopt it,
+merchant attraction and benefit gates). See **[ECONOMY.md](ECONOMY.md)** for the full
+loop, per-subsystem status, the public API, and the open decisions (tier→consumption,
+the growth driver, per-metric tiers).

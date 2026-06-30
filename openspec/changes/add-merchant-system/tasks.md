@@ -49,4 +49,4 @@
 - [x] 7.2 Live test: merchant CRUD + restock-to-capacity AND sell-surplus→treasury +
   buy→treasury/stock-down (`tests/merchant.spec.js`). Member-discount path is wired
   (unit-tested via `discountedPrice`); a live member-discount case is still TODO.
-- [ ] 7.3 Update `MERCHANT.md` / `KEEP.md`; note the #46 + evolution couplings.
+- [x] 7.3 Updated MERCHANT.md / KEEP.md + docs/ECONOMY.md (the #46 + evolution couplings).

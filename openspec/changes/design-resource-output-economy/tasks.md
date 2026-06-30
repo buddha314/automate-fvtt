@@ -37,4 +37,4 @@
 ## 5. Integration & tests
 - [x] 5.1 `applyOutputPipeline` slotted into the tick after producers/converters/projection.
 - [x] 5.2 Pure unit tests (`test/output-pipeline.test.js`) + live (`tests/output-pipeline.spec.js`).
-- [ ] 5.3 Docs: update `KEEP.md` / `MERCHANT.md` with the output model.
+- [x] 5.3 Docs: KEEP.md / MERCHANT.md updated + new docs/ECONOMY.md (loop, status, API, open decisions).
