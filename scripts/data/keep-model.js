@@ -76,6 +76,19 @@ export class KeepModel extends foundry.abstract.DataModel {
       merchants: new fields.ArrayField(new fields.ObjectField()),
 
       /**
+       * Evolution metrics (GM/content-set: area, order, population, …). Membership is
+       * derived from the roster, not stored here. Drives the computed {@link tier}.
+       */
+      metrics: new fields.ObjectField(),
+
+      /**
+       * Per-resource storage capacities for the output pipeline (#46). Written by the
+       * evolution engine from the Keep's tier; read by `applyOutputPipeline` (merged
+       * over the engine-global capacities). resourceKey → capacity.
+       */
+      capacities: new fields.ObjectField(),
+
+      /**
        * The Keep treasury — a single numeric currency pool (abstract units),
        * system-agnostic. Merchant sales credit it; crafting/upkeep costs debit it.
        * This is the `actorProperty` location a Fabricate currency profile points at

@@ -68,6 +68,8 @@ export const HOOKS = Object.freeze({
   TICK: `${MODULE_ID}.tick`,
   /** Fired with (keep) whenever a Keep's membership roster changes (Change A). */
   MEMBERSHIP_CHANGED: `${MODULE_ID}.membershipChanged`,
+  /** Fired with ({keep, tier, previous}) when a Keep's evolution tier changes. */
+  TIER_CHANGED: `${MODULE_ID}.tierChanged`,
   /**
    * Fired with ({keep, member, benefit, actionId}) when a member invokes an
    * `action` benefit. Content listens and executes the system-specific effect;
